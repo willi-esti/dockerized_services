@@ -1,0 +1,14 @@
+[Unit]
+
+Description=Your Script Name here
+
+After=default.target
+
+[Service]
+
+#ExecStart=/opt/openvpn/run.sh
+ExecStart=openvpn /opt/openvpn/CLIENTNAME2.ovpn
+
+[Install]
+
+WantedBy=default.target

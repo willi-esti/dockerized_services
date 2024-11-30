@@ -1,0 +1,2 @@
+CREATE DATABASE IF NOT EXISTS mailserver;
+#GRANT ALL PRIVILEGES ON db2.* TO 'user'@'%';

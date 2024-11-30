@@ -1,0 +1,6 @@
+{
+    "require": {
+        "decole/planka-php-sdk": "^1.1",
+        "vlucas/phpdotenv": "^5.4"
+    }
+}

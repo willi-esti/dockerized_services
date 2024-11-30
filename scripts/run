@@ -1,0 +1,113 @@
+#!/bin/bash
+
+SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
+
+if [ -f "$SCRIPT_DIR/../.env" ]; then
+    export $(cat "$SCRIPT_DIR/../.env" | grep -v '#' | awk '/=/ {print $1}')
+else
+    echo "The .env file does not exist."
+    exit 1
+fi
+
+COMPOSE_FILE="$ROOT_PATH/docker-compose.yml"
+
+docker_compose_up() {
+    if [[ "$1" == "gaia" ]]; then
+        docker compose --profile gaia-bdd -f $COMPOSE_FILE up -d
+        sleep 10
+        bash $ROOT_PATH/scripts/import_bdd_gaia.sh
+        if [ $? -ne 0 ]; then
+            docker_compose_down gaia
+            exit 1
+        fi
+        docker compose --profile $1 -f $COMPOSE_FILE up -d
+    else
+        docker compose --profile $1 -f $COMPOSE_FILE up -d
+    fi
+}
+
+docker_compose_down() {
+    if [ "$1" == "gaia" ]; then
+        docker compose --profile $1 -f $COMPOSE_FILE down -v
+    else
+        docker compose --profile $1 -f $COMPOSE_FILE down
+    fi
+}
+
+docker_compose_restart() {
+    docker_compose_down $1
+    docker_compose_up $1
+}
+
+# if 1st arg is pw and 2nd arg is up then pw profile will be used, if it's down then down it
+if [ "$1" == "pw" ]; then
+    if [ "$2" == "up" ]; then
+        docker_compose_up pw
+    elif [ "$2" == "down" ]; then
+        docker_compose_down pw
+    elif [ "$2" == "restart" ]; then
+        docker_compose_restart pw
+    fi
+    exit 0
+fi
+
+# if arg is openvpn then openvpn profile will be used
+if [ "$1" == "openvpn" ]; then
+    if [ "$2" == "up" ]; then
+        docker_compose_up openvpn
+    elif [ "$2" == "down" ]; then
+        docker_compose_down openvpn
+    elif [ "$2" == "restart" ]; then
+        docker_compose_restart openvpn
+    fi
+    exit 0
+fi
+
+# if arg is web then web profile will be used
+if [ "$1" == "web" ]; then
+    if [ "$2" == "up" ]; then
+        docker_compose_up web
+    elif [ "$2" == "down" ]; then
+        docker_compose_down web
+    elif [ "$2" == "restart" ]; then
+        docker_compose_restart web
+    fi
+    exit 0
+fi
+
+# if arg is gaia then gaia profile will be used, if it's down then down
+if [ "$1" == "gaia" ]; then
+    if [ "$2" == "up" ]; then
+        docker_compose_up gaia
+    elif [ "$2" == "down" ]; then
+        docker_compose_down gaia
+    elif [ "$2" == "restart" ]; then
+        docker_compose_restart gaia
+    fi
+    exit 0
+fi
+
+# if arg is down then down them all one by one
+if [ "$1" == "up" ]; then
+    docker_compose_up pw
+    docker_compose_up openvpn
+    docker_compose_up web
+    #docker_compose_up gaia
+    exit 0
+elif [ "$1" == "down" ]; then
+    docker_compose_down pw
+    docker_compose_down openvpn
+    docker_compose_down web
+    #docker_compose_down gaia
+    exit 0
+elif [ "$1" == "restart" ]; then
+    docker_compose_restart pw
+    docker_compose_restart openvpn
+    docker_compose_restart web
+    #docker_compose_restart gaia
+    exit 0
+fi
+
+echo "Usage: $0 {pw|openvpn|web|gaia} {up|down|restart}"
+exit 1
+
