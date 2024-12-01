@@ -44,8 +44,8 @@ services:
       - "443:443"
     volumes:
       - /var/www/html:/var/www/html
-      - /etc/letsencrypt/live/${SERVER_DOMAIN}:/etc/letsencrypt/live/${SERVER_DOMAIN}
-      - /etc/letsencrypt/archive/${SERVER_DOMAIN}:/etc/letsencrypt/archive/${SERVER_DOMAIN}
+      - ${SSL_CERTIFICATE_FILE}:${SSL_CERTIFICATE_FILE}
+      - ${SSL_CERTIFICATE_KEY_FILE}:${SSL_CERTIFICATE_KEY_FILE}
       - /etc/letsencrypt/keys:/etc/letsencrypt/keys
       - ./apache/000-default.conf:/etc/apache2/sites-available/000-default.conf
     networks:
