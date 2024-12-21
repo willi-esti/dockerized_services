@@ -8,6 +8,8 @@ services:
     container_name: openvpn
     cap_add:
       - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
     ports:
       - "1194:1194/udp"
     volumes:

@@ -21,6 +21,12 @@ docker_compose_up() {
             exit 1
         fi
         docker compose --profile $1 -f $COMPOSE_FILE up -d
+    elif [[ "$1" == "openvpn" ]]; then
+        bash $ROOT_PATH/scripts/ovpn.sh init;
+        if [ $? -ne 0 ]; then
+            exit 1
+        fi
+        docker compose --profile $1 -f $COMPOSE_FILE up -d
     else
         docker compose --profile $1 -f $COMPOSE_FILE up -d
     fi
