@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y \
     && a2enmod rewrite
 
 # Copy the Apache configuration file
-COPY 000-default.conf /etc/apache2/sites-available/000-default.conf
+#COPY 000-default.conf /etc/apache2/sites-available/000-default.conf
 
 # Expose ports 80 and 443
 EXPOSE 80 443

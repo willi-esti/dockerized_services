@@ -2,3 +2,4 @@
 .README.md
 scripts/planka-api-php/vendor/
 data
+vault/

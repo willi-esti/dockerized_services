@@ -5,17 +5,18 @@ services:
       dockerfile: Dockerfile
     container_name: apache
     ports:
-      - "${SERVER_DOMAIN}:80:80"
-      - "${SERVER_DOMAIN}:443:443"
+      - "80:80"
+      - "443:443"
+      - "444:444"
+      - "445:445"
     volumes:
       - ./data/apache:/var/www/html
       - ${SSL_CERTIFICATE_FILE}:${SSL_CERTIFICATE_FILE}
       - ${SSL_CERTIFICATE_KEY_FILE}:${SSL_CERTIFICATE_KEY_FILE}
-      - /etc/letsencrypt/keys:/etc/letsencrypt/keys
       - ./apache/000-default.conf:/etc/apache2/sites-available/000-default.conf
     networks:
       vpn_network:
-        ipv4_address: 172.10.0.1
+        ipv4_address: 172.10.0.2
     restart: always
     environment:
       - SERVER_ADMIN=${SERVER_ADMIN}
@@ -30,7 +31,7 @@ services:
     restart: on-failure
     container_name: planka
     volumes:
-      - ./data/planka-data:/app
+      - planka_data:/app
     ports:
       - "127.0.0.1:1337:1337"
     environment:
@@ -46,7 +47,7 @@ services:
         condition: service_healthy
     networks:
       vpn_network:
-        ipv4_address: 172.10.0.2
+        ipv4_address: 172.10.0.3
 
   wiki:
     image: ghcr.io/requarks/wiki:latest
@@ -66,10 +67,10 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
     volumes:
-      - .data/wiki-data:/wiki
+      - wiki_data:/wiki
     networks:
       vpn_network:
-        ipv4_address: 172.10.0.3
+        ipv4_address: 172.10.0.4
 
   postgres:
     image: postgres:15-alpine
@@ -83,16 +84,16 @@ services:
     logging:
       driver: "none"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d planka"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d planka && pg_isready -U postgres -d wiki"]
       interval: 10s
       timeout: 5s
       retries: 5
     volumes:
-      - ./data/postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
       - ./postgres/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
     networks:
       vpn_network:
-        ipv4_address: 172.10.0.4
+        ipv4_address: 172.10.0.5
   
 
   pgadmin:
@@ -107,7 +108,7 @@ services:
       PG_SERVER_PORT: ${PG_SERVER_PORT}
       PG_SERVER_USER: ${PG_SERVER_USER}
     volumes:
-      - ./data/pgadmin_data:/var/lib/pgadmin
+      - pgadmin_data:/var/lib/pgadmin
     #  - ./docker/entrypoint.sh:/docker-entrypoint-initdb.d/entrypoint.sh:ro # useless for now
     ports:
       - '8080:80'
@@ -115,7 +116,17 @@ services:
       - postgres
     networks:
       vpn_network:
-        ipv4_address: 172.10.0.5
+        ipv4_address: 172.10.0.6
+
+volumes:
+  planka_data:
+    name: planka_data
+  wiki_data:
+    name: wiki_data
+  postgres_data:
+    name: postgres_data
+  pgadmin_data:
+    name: pgadmin_data
 
 networks:
   vpn_network:
