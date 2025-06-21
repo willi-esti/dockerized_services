@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gaia Portal</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+        }
+
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 3s infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        .container {
+            position: relative;
+            z-index: 10;
+            max-width: 1200px;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .header {
+            margin-bottom: 3rem;
+            animation: fadeInUp 1s ease-out;
+        }
+
+        .logo {
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 1rem;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            background: linear-gradient(45deg, #ffffff, #e0e7ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+
+        .apps-grid {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 3rem;
+            animation: fadeInUp 1s ease-out 0.3s both;
+        }
+
+        .app-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 2.5rem 2rem;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            text-decoration: none;
+            color: inherit;
+            width: 400px;
+            flex-shrink: 0;
+        }
+
+        .app-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .app-card:hover::before {
+            left: 100%;
+        }
+
+        .app-card:hover {
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        .app-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 1.5rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: white;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .app-card:hover .app-icon {
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        .app-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 0.5rem;
+        }
+
+        .app-description {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .coming-soon {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            cursor: default;
+        }
+
+        .coming-soon:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .coming-soon .app-icon {
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .coming-soon .app-title,
+        .coming-soon .app-description {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .footer {
+            animation: fadeInUp 1s ease-out 0.6s both;
+        }
+
+        .footer-text {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.9rem;
+        }
+        /*
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .glow {
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 70%);
+            animation: rotate 20s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .logo {
+                font-size: 2.5rem;
+            }
+            
+            .apps-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+            
+            .app-card {
+                padding: 2rem 1.5rem;
+            }
+        }*/
+    </style>
+</head>
+<body>
+    <div class="stars"></div>
+    <div class="glow"></div>
+    
+    <div class="container">
+        <div class="header">
+            <h1 class="logo">Portail Gaia</h1>
+            <p class="subtitle">Votre passerelle vers l'excellence numérique</p>
+        </div>
+        
+        <div class="apps-grid">
+            <a href="https://192.168.255.6:445" class="app-card" target="_blank">
+                <div class="app-icon">📋</div>
+                <h3 class="app-title">Ergo</h3>
+                <p class="app-description">Plateforme de gestion de projet et de collaboration. Organisez vos tâches, gérez vos projets et travaillez efficacement en équipe.</p>
+            </a>
+            
+            <a href="https://192.168.255.6:444" class="app-card" target="_blank">
+                <div class="app-icon">📚</div>
+                <h3 class="app-title">Doxero</h3>
+                <p class="app-description">Base de connaissances et centre de documentation. Créez, organisez et partagez le savoir de votre équipe avec une puissante plateforme wiki.</p>
+            </a>
+            
+            <div class="app-card coming-soon">
+                <div class="app-icon">🚀</div>
+                <h3 class="app-title">Bientôt disponible</h3>
+                <p class="app-description">D'autres applications incroyables arrivent bientôt. Restez à l'écoute pour de nouveaux outils et fonctionnalités passionnants.</p>
+            </div>
+            
+            <div class="app-card coming-soon">
+                <div class="app-icon">⭐</div>
+                <h3 class="app-title">Application future</h3>
+                <p class="app-description">Une autre application puissante sera bientôt disponible ici. Les possibilités sont infinies.</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p class="footer-text">Créé avec ❤️ pour la productivité et la collaboration</p>
+        </div>
+    </div>
+
+    <script>
+        // Create animated stars
+        function createStars() {
+            const starsContainer = document.querySelector('.stars');
+            const numStars = 50;
+            
+            for (let i = 0; i < numStars; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.animationDelay = Math.random() * 3 + 's';
+                star.style.animationDuration = (Math.random() * 3 + 2) + 's';
+                starsContainer.appendChild(star);
+            }
+        }
+
+        // Add floating animation to app cards
+        function addFloatingAnimation() {
+            const cards = document.querySelectorAll('.app-card:not(.coming-soon)');
+            cards.forEach((card, index) => {
+                card.style.animation += `, float 6s ease-in-out infinite ${index * 0.5}s`;
+            });
+        }
+
+        // Add floating keyframes
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes float {
+                0%, 100% { transform: translateY(0px); }
+                50% { transform: translateY(-5px); }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Initialize animations
+        document.addEventListener('DOMContentLoaded', () => {
+            createStars();
+            addFloatingAnimation();
+        });
+
+        // Add smooth scrolling and hover effects
+        document.querySelectorAll('.app-card:not(.coming-soon)').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.style.filter = 'brightness(1.1)';
+            });
+            
+            card.addEventListener('mouseleave', () => {
+                card.style.filter = 'brightness(1)';
+            });
+        });
+    </script>
+</body>
+</html>
