@@ -3,3 +3,7 @@
 scripts/planka-api-php/vendor/
 vault/
 tmp
+kronos/data
+kronos/models
+__pycache__
+*.pyc

@@ -1,0 +1,64 @@
+services:
+  postgres_vsb:
+    container_name: postgres_vsb
+    build: 
+      context: ./docker/postgres
+      dockerfile: Dockerfile
+    environment:
+      POSTGRES_USER: vsb
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: vsb
+    ports:
+      - '5432:5432'
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin_vsb
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PG_SERVER_NAME: ${PG_SERVER_NAME}
+      PG_SERVER_HOST: ${PG_SERVER_HOST}
+      PG_SERVER_PORT: ${PG_SERVER_PORT}
+      PG_SERVER_USER: ${PG_SERVER_USER}
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    #  - ./docker/entrypoint.sh:/docker-entrypoint-initdb.d/entrypoint.sh:ro # useless for now
+    ports:
+      - '8080:80'
+    depends_on:
+      - postgres_vsb
+
+  python_vsb:
+    build:
+      context: .
+      dockerfile: docker/python/Dockerfile.dev
+    container_name: python_vsb
+    working_dir: /app/src
+    volumes:
+      - ./src:/app/src
+      - ./.env:/app/src/.env
+      - ./requirements.txt:/app/requirements.txt
+      - ./models:/app/models
+      - ./data:/app/data
+      - ./logs:/app/logs
+    environment:
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - postgres_vsb
+    command: tail -f /dev/null # Keep the container running for development
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+
+volumes:
+  db_data:
+  pgadmin_data:
