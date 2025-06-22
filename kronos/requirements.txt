@@ -2,3 +2,7 @@ psycopg2-binary
 sentence-transformers
 numpy
 dotenv
+fastapi
+uvicorn[standard]
+python-multipart
+asyncio

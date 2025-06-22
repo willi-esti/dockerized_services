@@ -1,7 +1,7 @@
 services:
   apache:
     build:
-      context: ./apache
+      context: ./docker/apache
       dockerfile: Dockerfile
     container_name: apache
     ports:
@@ -137,7 +137,9 @@ services:
       - PYTHONUNBUFFERED=1
     depends_on:
       - postgres
-    command: tail -f /dev/null # Keep the container running for development
+    ports:
+      - 8000:8000
+    command: uvicorn main:app --reload --host 0.0.0.0 --port 8000
     runtime: nvidia
     deploy:
       resources:
