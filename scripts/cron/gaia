@@ -1,0 +1,5 @@
+00 00 * * * /opt/scripts/backup_doxero_ergo.sh daily
+*/30 * * * * /opt/scripts/backup_doxero_ergo.sh 30min
+
+0 7 * * * /opt/scripts/check_meteo.sh majdc
+1 7 * * * /opt/scripts/check_meteo.sh 1ed

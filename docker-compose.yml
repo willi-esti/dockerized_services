@@ -27,7 +27,7 @@ services:
       - SSL_CERTIFICATE_KEY_FILE=${SSL_CERTIFICATE_KEY_FILE}
 
   planka:
-    image: ghcr.io/plankanban/planka:latest
+    image: ghcr.io/plankanban/planka:1.25.0
     restart: on-failure
     container_name: planka
     volumes:
