@@ -5,5 +5,7 @@ vault/
 tmp
 kronos/data
 kronos/models
+kronos/logs
 __pycache__
 *.pyc
+

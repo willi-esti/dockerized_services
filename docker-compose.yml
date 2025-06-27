@@ -140,12 +140,16 @@ services:
     ports:
       - 8000:8000
     command: uvicorn main:app --reload --host 0.0.0.0 --port 8000
+    #command: python3 main.py
     runtime: nvidia
     deploy:
       resources:
         reservations:
           devices:
             - capabilities: [gpu]
+    networks:
+      vpn_network:
+        ipv4_address: 172.10.0.7
 
 
 volumes:

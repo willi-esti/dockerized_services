@@ -7,7 +7,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 # Load .env from project root
-load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent.parent / '.env')
+load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / '.env')
 
 DB_PARAMS = {
     'host': os.getenv('PG_SERVER_HOST'),
@@ -16,6 +16,7 @@ DB_PARAMS = {
     'user': os.getenv('PG_SERVER_USER'),
     'password': os.getenv('PG_SERVER_PASSWORD'),
 }
+print("Database parameters loaded:", DB_PARAMS)
 
 def get_conn():
     return psycopg2.connect(**DB_PARAMS)
@@ -106,12 +107,17 @@ def add_tag_to_knowledge_item(knowledge_item_id, tag_name):
 
 def search_chunks_by_embedding(embedding, top_k=5):
     """Search for chunks by embedding similarity."""
+    # Ensure embedding is a list of native Python floats
+    if isinstance(embedding, np.ndarray):
+        embedding = embedding.astype(float).tolist()
+    else:
+        embedding = [float(x) for x in embedding]
     with get_conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("""
-                SELECT content, 1 - (embedding <=> %s) as similarity
+                SELECT id, knowledge_item_id, content, 1 - (embedding <=> %s::vector) as similarity
                 FROM chunks
                 ORDER BY similarity DESC
                 LIMIT %s;
-            """, (list(embedding), top_k))
+            """, (embedding, top_k))
             return cur.fetchall()
