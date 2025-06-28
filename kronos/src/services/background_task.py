@@ -23,7 +23,7 @@ def get_planka_conn():
     )
 
 async def sync_databases():
-    await export_updated_cards(datetime.now() - timedelta(days=100))  # Example: export cards updated in the last day
+    await export_updated_cards(datetime.now() - timedelta(days=10))  # Example: export cards updated in the last day
     """
     while True:
         logger("Starting database synchronization task...")
