@@ -60,8 +60,8 @@ services:
       DB_TYPE: postgres
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_USER: ${POSTGRES_USER}
-      DB_PASS: ${POSTGRES_PASSWORD}
+      DB_USER: wikijs
+      DB_PASS: wikijs
       DB_NAME: wiki
     restart: unless-stopped
     ports:

@@ -3,7 +3,7 @@ import uvicorn
 from fastapi import FastAPI
 from routes import chat, memory, tags, conversations
 from utils.logger import logger
-
+from services.background_task import sync_databases
 
 app = FastAPI(
     title="Kronos",

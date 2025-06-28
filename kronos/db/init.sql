@@ -4,6 +4,8 @@ CREATE EXTENSION IF NOT EXISTS vector;
 -- 1. Main unit of knowledge (could be one idea from a PDF, chat, etc.)
 CREATE TABLE knowledge_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  foreign_id TEXT,                     -- unique ID from source (PDF, chat, etc.)
+  source TEXT,                     -- 'pdf', 'chat', 'md', etc.
   title TEXT NOT NULL,                           -- short human-readable label
   summary TEXT,                                  -- optional description
   created_at TIMESTAMP DEFAULT NOW(),
