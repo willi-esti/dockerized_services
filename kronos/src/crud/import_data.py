@@ -1,9 +1,34 @@
 import hashlib
+import os
+from sentence_transformers import SentenceTransformer
 from crud.knowledge_items import insert_knowledge_item, get_knowledge_item_by_foreign_id_and_source, update_knowledge_item
 from crud.source_files import insert_source_file, sha256_of_text, file_exists_by_sha256, get_source_files_by_knowledge_item, delete_source_files_by_knowledge_item
 from crud.chunks import insert_chunk, delete_chunks_by_knowledge_item
 from crud.tags import add_tag_to_knowledge_item
 from config.logger import logger
+
+
+# Global model instance (loaded once)
+_embedding_model = None
+
+
+def get_embedding_model():
+    """Get or load the embedding model."""
+    global _embedding_model
+    if _embedding_model is None:
+        cache_folder = os.getenv('MODEL_CACHE_FOLDER', '/app/models')
+        model_path = os.path.join(cache_folder, 'all-MiniLM-L6-v2')
+        _embedding_model = SentenceTransformer('all-MiniLM-L6-v2', cache_folder=model_path)
+        logger(f"Loaded SentenceTransformer model to {model_path}", level='INFO')
+    return _embedding_model
+
+
+def generate_embedding(text):
+    """Generate embedding for a text."""
+    model = get_embedding_model()
+    # Convert to numpy array and then to list for JSON serialization
+    embedding = model.encode([text], convert_to_numpy=True)[0]
+    return embedding.tolist()
 
 
 def import_knowledge_item_with_tag(title, summary, content, file_path, tag_name, foreign_id=None, source=None):
@@ -170,7 +195,7 @@ def import_knowledge_item_with_tag(title, summary, content, file_path, tag_name,
 
 def create_chunks_from_content(knowledge_item_id, content, chunk_size=1000, overlap=100):
     """
-    Create chunks from content text.
+    Create chunks from content text with proper embeddings.
     
     Args:
         knowledge_item_id (int): ID of the knowledge item
@@ -187,13 +212,17 @@ def create_chunks_from_content(knowledge_item_id, content, chunk_size=1000, over
     if len(content) <= chunk_size:
         # Content fits in one chunk
         try:
+            # Generate real embedding for the content
+            embedding = generate_embedding(content)
+            
             chunk_id = insert_chunk(
                 knowledge_item_id=knowledge_item_id,
                 content=content,
-                embedding=[0.0] * 384,  # Placeholder embedding - will be updated later
+                embedding=embedding,
                 chunk_index=0
             )
             chunk_ids.append(chunk_id)
+            logger(f"Created chunk with embedding (size: {len(embedding)}) for knowledge item {knowledge_item_id}", level='DEBUG')
         except Exception as e:
             logger(f"Error creating chunk for knowledge item {knowledge_item_id}: {str(e)}", level='ERROR')
     else:
@@ -206,10 +235,13 @@ def create_chunks_from_content(knowledge_item_id, content, chunk_size=1000, over
             chunk_content = content[start:end]
             
             try:
+                # Generate real embedding for each chunk
+                embedding = generate_embedding(chunk_content)
+                
                 chunk_id = insert_chunk(
                     knowledge_item_id=knowledge_item_id,
                     content=chunk_content,
-                    embedding=[0.0] * 384,  # Placeholder embedding
+                    embedding=embedding,
                     chunk_index=chunk_index
                 )
                 chunk_ids.append(chunk_id)
@@ -222,7 +254,7 @@ def create_chunks_from_content(knowledge_item_id, content, chunk_size=1000, over
                 logger(f"Error creating chunk {chunk_index} for knowledge item {knowledge_item_id}: {str(e)}", level='ERROR')
                 break
     
-    logger(f"Created {len(chunk_ids)} chunks for knowledge item {knowledge_item_id}", level='DEBUG')
+    logger(f"Created {len(chunk_ids)} chunks with embeddings for knowledge item {knowledge_item_id}", level='DEBUG')
     return chunk_ids
 
 
@@ -286,3 +318,57 @@ def import_files_with_tag(files, tag_name):
     logger(f"Import completed for tag '{tag_name}': {results['imported']} new, {results['updated']} updated, {results['duplicates']} duplicates, {results['errors']} errors", level='INFO')
     
     return results
+
+
+def update_existing_chunks_with_embeddings():
+    """
+    Update all existing chunks that have zero embeddings with proper embeddings.
+    This is useful for fixing existing data that was imported with placeholder embeddings.
+    
+    Returns:
+        dict: Update statistics
+    """
+    try:
+        from crud.chunks import get_chunks_by_knowledge_item
+        from crud.knowledge_items import get_knowledge_items
+        
+        logger("Starting to update existing chunks with proper embeddings...", level='INFO')
+        
+        # Get all knowledge items
+        knowledge_items = get_knowledge_items()
+        
+        stats = {
+            'knowledge_items_processed': 0,
+            'chunks_updated': 0,
+            'errors': 0
+        }
+        
+        for ki in knowledge_items:
+            try:
+                stats['knowledge_items_processed'] += 1
+                chunks = get_chunks_by_knowledge_item(ki['id'])
+                
+                for chunk in chunks:
+                    # Check if chunk has zero embeddings
+                    if chunk['embedding'] and all(x == 0.0 for x in chunk['embedding']):
+                        # Generate new embedding
+                        new_embedding = generate_embedding(chunk['content'])
+                        
+                        # Update the chunk in database
+                        from crud.chunks import update_chunk_embedding
+                        update_chunk_embedding(chunk['id'], new_embedding)
+                        
+                        stats['chunks_updated'] += 1
+                        logger(f"Updated embedding for chunk {chunk['id']}", level='DEBUG')
+                
+            except Exception as e:
+                stats['errors'] += 1
+                logger(f"Error processing knowledge item {ki['id']}: {str(e)}", level='ERROR')
+        
+        logger(f"Embedding update completed: {stats['chunks_updated']} chunks updated across {stats['knowledge_items_processed']} knowledge items", level='INFO')
+        return stats
+        
+    except Exception as e:
+        error_msg = f"Error updating embeddings: {str(e)}"
+        logger(error_msg, level='ERROR')
+        return {'error': error_msg}

@@ -57,3 +57,21 @@ def get_chunks_by_knowledge_item(knowledge_item_id):
                 ORDER BY chunk_index;
             """, (knowledge_item_id,))
             return cur.fetchall()
+
+
+def update_chunk_embedding(chunk_id, embedding):
+    """Update the embedding of an existing chunk."""
+    # Ensure embedding is a list of native Python floats
+    if isinstance(embedding, np.ndarray):
+        embedding = embedding.astype(float).tolist()
+    else:
+        embedding = [float(x) for x in embedding]
+        
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE chunks 
+                SET embedding = %s, updated_at = NOW()
+                WHERE id = %s;
+            """, (embedding, chunk_id))
+            conn.commit()
