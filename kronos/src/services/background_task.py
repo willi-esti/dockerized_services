@@ -1,4 +1,4 @@
-from utils.logger import logger
+from config.logger import logger
 import asyncio
 import os
 import psycopg2

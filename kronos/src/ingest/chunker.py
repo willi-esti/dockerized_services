@@ -1,4 +1,4 @@
-from utils.logger import logger
+from config.logger import logger
 from transformers import AutoTokenizer
 
 def smart_overlap_chunk(

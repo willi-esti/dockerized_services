@@ -8,9 +8,9 @@ from sentence_transformers import SentenceTransformer
 from ingest.embedder import embed_chunks
 from ingest.loader import load_files
 from ingest.chunker import smart_overlap_chunk
-from utils.check_env import check_env_vars
-from utils.logger import logger
-from utils.db_utils import insert_knowledge_item, insert_source_file, insert_chunk, sha256_of_text, file_exists_by_sha256
+from config.check_env import check_env_vars
+from config.logger import logger
+from config.db import insert_knowledge_item, insert_source_file, insert_chunk, sha256_of_text, file_exists_by_sha256
 
 def check_gpu():
     """

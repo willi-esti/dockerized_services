@@ -1,4 +1,4 @@
-from utils.logger import logger
+from config.logger import logger
 import os
 
 def embed_chunks(model, chunks):

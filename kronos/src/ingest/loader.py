@@ -1,6 +1,6 @@
 import os
 import pathlib
-from utils.logger import logger
+from config.logger import logger
 
 SUPPORTED_EXTENSIONS = ['.txt', '.md', '.pdf', '.json', '.csv']
 

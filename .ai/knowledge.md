@@ -22,7 +22,7 @@ The data pipeline is implemented in the `kronos/src/ingest` directory and consis
 1.  **Data Loading:** The `loader.py` script recursively finds all files with supported extensions (`.txt`, `.md`, `.pdf`, `.json`, `.csv`) in a given directory.
 2.  **Chunking:** The `chunker.py` script takes a file path, reads the text content, and splits it into overlapping chunks of a specified size. It uses a tokenizer from the `transformers` library to ensure that the chunks are of a consistent length in terms of tokens.
 3.  **Embedding:** The `embedder.py` script takes a list of text chunks and uses a pre-trained model from the `sentence-transformers` library to convert them into vector embeddings.
-4.  **Storage:** The `main1.py` script provides a clear example of how to store the chunks and their embeddings in the database. It uses the `db_utils.py` script to interact with the PostgreSQL database. The chosen vector store is **PostgreSQL with the `pgvector` extension**.
+4.  **Storage:** The `main1.py` script provides a clear example of how to store the chunks and their embeddings in the database. It uses the `db_config.py` script to interact with the PostgreSQL database. The chosen vector store is **PostgreSQL with the `pgvector` extension**.
 
 ## Code Structure
 
@@ -42,11 +42,11 @@ The project is organized into the following key directories:
 *   `export_updated_cards()` in `services/background_task.py`: Exports all cards that have been updated after a specified date from the Planka database.
 *   `smart_overlap_chunk()` in `ingest/chunker.py`: Splits a text file into overlapping chunks of a specified size.
 *   `embed_chunks()` in `ingest/embedder.py`: Converts a list of text chunks into vector embeddings.
-*   `insert_knowledge_item()`, `insert_source_file()`, and `insert_chunk()` in `utils/db_utils.py`: Functions for storing the data in the PostgreSQL database.
+*   `insert_knowledge_item()`, `insert_source_file()`, and `insert_chunk()` in `utils/db_config.py`: Functions for storing the data in the PostgreSQL database.
 
 ## Next Steps
 
 1.  **Uncomment the `while` loop** in `sync_databases()` to enable continuous synchronization.
 2.  **Integrate the chunking and embedding logic** from `main1.py` into the `export_single_card()` function in `services/background_task.py`.
-3.  **Add a function to store the embeddings** in the vector database, using the `db_utils.py` script as a reference.
+3.  **Add a function to store the embeddings** in the vector database, using the `db_config.py` script as a reference.
 4.  **Implement the API endpoints** in the `routes` directory to provide access to the vectorized data.

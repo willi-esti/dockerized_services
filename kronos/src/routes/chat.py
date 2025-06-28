@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from models_api.models import ChatRequest, ChatResponse
 from services import chat_service
-from utils.logger import logger
+from config.logger import logger
 
 router = APIRouter()
 
