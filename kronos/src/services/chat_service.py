@@ -1,15 +1,31 @@
 from services import memory_service
+from services.ollama_service import ollama_service
 
 def process_chat(message: str, conversation_id: str = None):
     # 1. Search for relevant memory
     relevant_memory = memory_service.search_memory(message)
+    
+    # 2. Create context-aware prompt
+    context = ""
+    if relevant_memory:
+        context = "\n".join([f"- {item['content'][:200]}..." for item in relevant_memory[:3]])
+        
+    prompt = f"""You are an AI assistant with access to a knowledge base. Use the following context to help answer the user's question.
 
-    # 2. Generate a reply (mocked for now)
-    reply = f"Based on your question, I found the following information: {relevant_memory[0]['content'] if relevant_memory else 'No relevant information found.'}"
+Context from knowledge base:
+{context if context else "No relevant context found."}
+
+User question: {message}
+
+Please provide a helpful response based on the context provided. If the context doesn't contain relevant information, let the user know and provide a general response."""
+
+    # 3. Generate AI response
+    ai_response = ollama_service.generate_response(prompt)
 
     # TODO: Store conversation history
 
     return {
-        "reply": reply,
-        "relevant_memory": relevant_memory
+        "reply": ai_response,
+        "relevant_memory": relevant_memory,
+        "conversation_id": conversation_id
     }

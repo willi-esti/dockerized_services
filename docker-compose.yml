@@ -136,8 +136,11 @@ services:
       - ./kronos/logs:/app/logs
     environment:
       - PYTHONUNBUFFERED=1
+      - OLLAMA_URL=http://${KRONOS_DOMAIN}:11434
+#      - OLLAMA_URL=http://172.10.0.9:11434
     depends_on:
       - postgres
+      - ollama
     ports:
       - 8000:8000
     command: uvicorn main:app --reload --host 0.0.0.0 --port 8000
@@ -152,6 +155,44 @@ services:
       vpn_network:
         ipv4_address: 172.10.0.7
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://${KRONOS_DOMAIN}:8000
+#      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - kronos
+      - ollama
+    networks:
+      vpn_network:
+        ipv4_address: 172.10.0.8
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    networks:
+      vpn_network:
+        ipv4_address: 172.10.0.9
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+
 
 volumes:
   planka_data:
@@ -162,6 +203,8 @@ volumes:
     name: postgres_data
   pgadmin_data:
     name: pgadmin_data
+  ollama_models:
+    name: ollama_models
 
 networks:
   vpn_network:

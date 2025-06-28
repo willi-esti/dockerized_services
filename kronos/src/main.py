@@ -1,6 +1,7 @@
 import asyncio
 import uvicorn
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from routes import chat, memory, tags, conversations
 from config.logger import logger
 from services.background_task import sync_databases
@@ -11,6 +12,16 @@ app = FastAPI(
     version="0.1.0",
     host="0.0.0.0",
     port=8000,
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    #allow_origins=["http://localhost:3001", "http://127.0.0.1:3001"],
+    allow_origins=["*"],  # Allow all origins for development; restrict in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(chat.router)
