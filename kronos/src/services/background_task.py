@@ -10,6 +10,7 @@ from crud.wiki import get_updated_pages, get_page_complete_data
 from crud.import_data import import_files_with_tag
 from crud.source_files import insert_source_file, sha256_of_text, file_exists_by_sha256
 from crud.chunks import insert_chunk
+from crud.sync_metadata import get_last_sync_date, update_sync_date, set_sync_status, initialize_sync_metadata
 from utils.file_export import create_export_directory, write_card_to_file
 from utils.wiki_export import create_wiki_export_directory, write_wiki_page_to_file, sanitize_filename
 from utils.data_import import process_imported_data_and_archive, load_files as load_exported_files
@@ -21,16 +22,33 @@ from config.check_env import check_env_vars
 
 async def sync_databases():
     """Main synchronization function."""
-    await export_updated_cards(datetime.now() - timedelta(days=10))
-    await export_updated_wiki_pages(datetime.now() - timedelta(days=10))
-    await import_exported_data()
-    """
     while True:
-        logger("Starting database synchronization task...")
-        # Here you would query database A and write to database B
-        await check_and_migrate_data()
-        await asyncio.sleep(10)  # wait 30 seconds between checks
-        """
+        logger("Starting database synchronization task...", level='INFO')
+        
+        try:
+            # Initialize sync metadata if not exists
+            initialize_sync_metadata()
+            
+            # Get last sync dates
+            last_planka_sync = get_last_sync_date('planka_export')
+            last_wiki_sync = get_last_sync_date('wiki_export')
+            
+            logger(f"Last Planka sync: {last_planka_sync}", level='INFO')
+            logger(f"Last Wiki sync: {last_wiki_sync}", level='INFO')
+            
+            # Export and import data
+            await export_updated_cards(last_planka_sync)
+            await export_updated_wiki_pages(last_wiki_sync)
+            await import_exported_data()
+            
+            logger("Database synchronization completed successfully", level='INFO')
+            
+        except Exception as e:
+            logger(f"Error during database synchronization: {str(e)}", level='ERROR')
+        
+        # Wait before next sync cycle
+        logger("Waiting 60 seconds before next sync cycle...", level='INFO')
+        await asyncio.sleep(60)  # Wait 60 seconds between sync cycles
 
 async def export_updated_cards(updated_after_date):
     """
@@ -39,17 +57,31 @@ async def export_updated_cards(updated_after_date):
     Args:
         updated_after_date (datetime): Only export cards updated after this date
     """
+    sync_type = 'planka_export'
     logger(f"Exporting cards updated after {updated_after_date}")
     
     try:
+        # Set sync status to running
+        set_sync_status(sync_type, 'running')
+        
         cards = get_updated_cards(updated_after_date)
         logger(f"Found {len(cards)} updated cards")
         
+        export_count = 0
         for card in cards:
-            await export_single_card(card)
+            success = await export_single_card(card)
+            if success:
+                export_count += 1
+        
+        # Update sync date to now upon successful completion
+        current_time = datetime.now()
+        update_sync_date(sync_type, current_time, 'completed')
+        logger(f"Successfully exported {export_count} cards. Updated sync date to {current_time}")
                     
     except Exception as e:
-        logger(f"Error exporting updated cards: {str(e)}")
+        error_msg = f"Error exporting updated cards: {str(e)}"
+        logger(error_msg, level='ERROR')
+        set_sync_status(sync_type, 'failed', error_msg)
 
 async def export_single_card(card):
     """Export a single card with all its related data."""
@@ -67,7 +99,7 @@ async def export_single_card(card):
         # Check if file already exists
         if file_path.exists():
             logger(f"Card {card_id} already exported, skipping")
-            return
+            return True
         
         # Get additional card data
         card_data = get_card_complete_data(card_id)
@@ -77,9 +109,11 @@ async def export_single_card(card):
         write_card_to_file(file_path, card_data)
         
         logger(f"Exported card {card_id} to {file_path}")
+        return True
         
     except Exception as e:
         logger(f"Error exporting card {card_id}: {str(e)}")
+        return False
 
 async def export_updated_wiki_pages(updated_after_date):
     """
@@ -88,17 +122,31 @@ async def export_updated_wiki_pages(updated_after_date):
     Args:
         updated_after_date (datetime): Only export pages updated after this date
     """
+    sync_type = 'wiki_export'
     logger(f"Exporting wiki pages updated after {updated_after_date}")
     
     try:
+        # Set sync status to running
+        set_sync_status(sync_type, 'running')
+        
         pages = get_updated_pages(updated_after_date)
         logger(f"Found {len(pages)} updated wiki pages")
         
+        export_count = 0
         for page in pages:
-            await export_single_wiki_page(page)
+            success = await export_single_wiki_page(page)
+            if success:
+                export_count += 1
+        
+        # Update sync date to now upon successful completion
+        current_time = datetime.now()
+        update_sync_date(sync_type, current_time, 'completed')
+        logger(f"Successfully exported {export_count} wiki pages. Updated sync date to {current_time}")
                     
     except Exception as e:
-        logger(f"Error exporting updated wiki pages: {str(e)}")
+        error_msg = f"Error exporting updated wiki pages: {str(e)}"
+        logger(error_msg, level='ERROR')
+        set_sync_status(sync_type, 'failed', error_msg)
 
 async def export_single_wiki_page(page):
     """Export a single wiki page with all its related data."""
@@ -122,7 +170,7 @@ async def export_single_wiki_page(page):
         # Check if file already exists
         if file_path.exists():
             logger(f"Wiki page {page_id} ({page_path}) already exported, skipping")
-            return
+            return True
         
         # Get additional page data
         page_data = get_page_complete_data(page_id)
@@ -132,9 +180,11 @@ async def export_single_wiki_page(page):
         write_wiki_page_to_file(file_path, page_data)
         
         logger(f"Exported wiki page {page_id} ({page_path}) to {file_path}")
+        return True
         
     except Exception as e:
         logger(f"Error exporting wiki page {page_id}: {str(e)}")
+        return False
 
 async def import_exported_data():
     """Import exported data files into the knowledge base and archive them."""
@@ -147,8 +197,13 @@ async def import_exported_data():
         results = process_imported_data_and_archive(data_path)
         
         if results['success']:
-            logger(f"Import completed: {results['imported_folders']} folders, {results['imported_files']} files imported", level='INFO')
-            logger(f"Archived {len(results['archived_folders'])} folders", level='INFO')
+            if results['imported_files'] == 0 and results['updated_files'] == 0:
+                logger("No files to import - all data is up to date", level='INFO')
+            else:
+                logger(f"Import completed: {results['imported_folders']} folders processed", level='INFO')
+                logger(f"  - {results['imported_files']} new files imported", level='INFO')
+                logger(f"  - {results['updated_files']} existing files updated", level='INFO')
+                logger(f"  - Archived {len(results['archived_folders'])} folders", level='INFO')
             
             if results['errors']:
                 logger(f"Import had {len(results['errors'])} errors:", level='WARNING')

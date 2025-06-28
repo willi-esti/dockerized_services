@@ -54,6 +54,23 @@ CREATE TABLE knowledge_item_tags (
   PRIMARY KEY (knowledge_item_id, tag_id)
 );
 
+-- 6. Sync metadata to track last synchronization times
+CREATE TABLE sync_metadata (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sync_type TEXT UNIQUE NOT NULL,               -- 'planka_export', 'wiki_export', etc.
+  last_sync_date TIMESTAMP NOT NULL,            -- last successful sync date
+  sync_status TEXT DEFAULT 'completed',         -- 'running', 'completed', 'failed'
+  last_error TEXT,                              -- last error message if any
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Insert initial sync dates (start from 1900 to get all data)
+INSERT INTO sync_metadata (sync_type, last_sync_date) VALUES
+  ('planka_export', '1900-01-01 00:00:00'),
+  ('wiki_export', '1900-01-01 00:00:00')
+ON CONFLICT (sync_type) DO NOTHING;
+
 /*
 DELETE FROM knowledge_items;
 DELETE FROM source_files;

@@ -152,8 +152,16 @@ def process_imported_data_and_archive(data_path):
     files_by_folder = load_files(data_path)
     
     if not files_by_folder:
-        logger("No files to import. Exiting.", level='WARNING')
-        return {'success': False, 'error': 'No files found to import'}
+        logger("No files to import. This is normal when no new data has been exported.", level='INFO')
+        return {
+            'success': True,
+            'imported_folders': 0,
+            'imported_files': 0,
+            'updated_files': 0,
+            'archived_folders': [],
+            'errors': [],
+            'message': 'No files found to import (this is normal)'
+        }
     
     total_files = sum(len(files) for files in files_by_folder.values())
     logger(f"Found {total_files} files across {len(files_by_folder)} folders", level='INFO')
