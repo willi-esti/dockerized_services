@@ -45,16 +45,21 @@ async def export_single_card(card):
         card_id = card['id']
         project_name = card['project_name']
         
-        # Get additional card data
-        card_data = get_card_complete_data(card_id)
-        card_data.update(dict(card))  # Merge with basic card info
-        
         # Create directory structure
         project_dir = create_export_directory(project_name)
         
         # Create filename with card ID
         filename = f"card_{card_id}.txt"
         file_path = project_dir / filename
+        
+        # Check if file already exists
+        if file_path.exists():
+            logger(f"Card {card_id} already exported, skipping")
+            return
+        
+        # Get additional card data
+        card_data = get_card_complete_data(card_id)
+        card_data.update(dict(card))  # Merge with basic card info
         
         # Write card data to file
         write_card_to_file(file_path, card_data)
@@ -89,10 +94,6 @@ async def export_single_wiki_page(page):
         page_id = page['id']
         page_path = page['path']
         
-        # Get additional page data
-        page_data = get_page_complete_data(page_id)
-        page_data.update(dict(page))  # Merge with basic page info
-        
         # Create directory structure
         wiki_dir = create_wiki_export_directory()
         
@@ -105,6 +106,15 @@ async def export_single_wiki_page(page):
         
         filename = f"{base_filename}_{page_id}.txt"
         file_path = wiki_dir / filename
+        
+        # Check if file already exists
+        if file_path.exists():
+            logger(f"Wiki page {page_id} ({page_path}) already exported, skipping")
+            return
+        
+        # Get additional page data
+        page_data = get_page_complete_data(page_id)
+        page_data.update(dict(page))  # Merge with basic page info
         
         # Write page data to file
         write_wiki_page_to_file(file_path, page_data)
