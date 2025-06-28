@@ -1,6 +1,9 @@
 from config import db
 from ingest import chunker, embedder
 from sentence_transformers import SentenceTransformer
+from crud.knowledge_items import insert_knowledge_item
+from crud.chunks import insert_chunk, search_chunks_by_embedding
+from crud.tags import add_tag_to_knowledge_item
 
 # It's inefficient to load the model every time. In a real app, you'd load it once.
 # For this example, we load it when the service is initialized.
@@ -10,7 +13,7 @@ MODEL = SentenceTransformer(MODEL_NAME)
 def add_memory(text: str, tags: list = None):
     """Adds a new memory to the database."""
     # 1. Create a knowledge item
-    knowledge_item_id = db_config.insert_knowledge_item(title="New Memory")
+    knowledge_item_id = insert_knowledge_item(title="New Memory")
 
     # 2. Chunk the text
     # Note: The chunker expects a file path, so we'll save the text to a temporary file.
@@ -25,12 +28,12 @@ def add_memory(text: str, tags: list = None):
 
     # 4. Insert chunks into the database
     for i, (chunk_text, embedding) in enumerate(zip(chunks, embeddings)):
-        db_config.insert_chunk(knowledge_item_id, chunk_text, embedding, i)
+        insert_chunk(knowledge_item_id, chunk_text, embedding, i)
 
     # 5. Add tags
     if tags:
         for tag in tags:
-            db_config.add_tag_to_knowledge_item(knowledge_item_id, tag)
+            add_tag_to_knowledge_item(knowledge_item_id, tag)
 
     return {"status": "success", "message": "Memory added."}
 
@@ -40,5 +43,5 @@ def search_memory(query: str, top_k: int = 5):
     query_embedding = embedder.embed_chunks(MODEL, [query])[0]
 
     # 2. Search for similar chunks
-    results = db_config.search_chunks_by_embedding(query_embedding, top_k)
+    results = search_chunks_by_embedding(query_embedding, top_k)
     return results
