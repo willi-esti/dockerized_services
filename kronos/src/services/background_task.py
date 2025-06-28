@@ -4,11 +4,14 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from crud.planka import get_updated_cards, get_card_complete_data
+from crud.wiki import get_updated_pages, get_page_complete_data
 from utils.file_export import create_export_directory, write_card_to_file
+from utils.wiki_export import create_wiki_export_directory, write_wiki_page_to_file, sanitize_filename
 
 async def sync_databases():
     """Main synchronization function."""
     await export_updated_cards(datetime.now() - timedelta(days=10))
+    await export_updated_wiki_pages(datetime.now() - timedelta(days=10))
     """
     while True:
         logger("Starting database synchronization task...")
@@ -60,6 +63,56 @@ async def export_single_card(card):
         
     except Exception as e:
         logger(f"Error exporting card {card_id}: {str(e)}")
+
+async def export_updated_wiki_pages(updated_after_date):
+    """
+    Export wiki pages that have been updated after the specified date.
+    
+    Args:
+        updated_after_date (datetime): Only export pages updated after this date
+    """
+    logger(f"Exporting wiki pages updated after {updated_after_date}")
+    
+    try:
+        pages = get_updated_pages(updated_after_date)
+        logger(f"Found {len(pages)} updated wiki pages")
+        
+        for page in pages:
+            await export_single_wiki_page(page)
+                    
+    except Exception as e:
+        logger(f"Error exporting updated wiki pages: {str(e)}")
+
+async def export_single_wiki_page(page):
+    """Export a single wiki page with all its related data."""
+    try:
+        page_id = page['id']
+        page_path = page['path']
+        
+        # Get additional page data
+        page_data = get_page_complete_data(page_id)
+        page_data.update(dict(page))  # Merge with basic page info
+        
+        # Create directory structure
+        wiki_dir = create_wiki_export_directory()
+        
+        # Create filename from page path with ID
+        if page_path and page_path != '/':
+            # Remove leading slash and replace path separators with underscores
+            base_filename = sanitize_filename(page_path.lstrip('/').replace('/', '_'))
+        else:
+            base_filename = "home"
+        
+        filename = f"{base_filename}_{page_id}.txt"
+        file_path = wiki_dir / filename
+        
+        # Write page data to file
+        write_wiki_page_to_file(file_path, page_data)
+        
+        logger(f"Exported wiki page {page_id} ({page_path}) to {file_path}")
+        
+    except Exception as e:
+        logger(f"Error exporting wiki page {page_id}: {str(e)}")
 
 async def check_and_migrate_data():
     """Check for new data to migrate between databases."""
