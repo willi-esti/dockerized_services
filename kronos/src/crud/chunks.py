@@ -34,3 +34,26 @@ def search_chunks_by_embedding(embedding, top_k=5):
                 LIMIT %s;
             """, (embedding, top_k))
             return cur.fetchall()
+
+
+def delete_chunks_by_knowledge_item(knowledge_item_id):
+    """Delete all chunks for a knowledge item."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                DELETE FROM chunks 
+                WHERE knowledge_item_id = %s;
+            """, (knowledge_item_id,))
+            conn.commit()
+
+
+def get_chunks_by_knowledge_item(knowledge_item_id):
+    """Get all chunks for a knowledge item."""
+    with get_conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("""
+                SELECT * FROM chunks 
+                WHERE knowledge_item_id = %s
+                ORDER BY chunk_index;
+            """, (knowledge_item_id,))
+            return cur.fetchall()

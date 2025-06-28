@@ -132,6 +132,7 @@ services:
       - ./kronos/requirements.txt:/app/requirements.txt
       - ./kronos/models:/app/models
       - ./kronos/data:/app/data
+      - ./kronos/archive:/app/archive
       - ./kronos/logs:/app/logs
     environment:
       - PYTHONUNBUFFERED=1

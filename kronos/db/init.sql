@@ -54,7 +54,14 @@ CREATE TABLE knowledge_item_tags (
   PRIMARY KEY (knowledge_item_id, tag_id)
 );
 
+/*
+DELETE FROM knowledge_items;
+DELETE FROM source_files;
+DELETE FROM chunks;
+DELETE FROM tags;
+*/
 
+/*
 INSERT INTO tags (name, description) VALUES
   ('Workout', 'My workout routines and exercises'),
   ('Nutrition', 'Diet plans and nutritional information'),
@@ -73,3 +80,4 @@ INSERT INTO tags (name, description) VALUES
   ('Movies', 'Movies I want to watch or have watched'),
   ('Music', 'Music recommendations and playlists'),
   ('Others', 'Miscellaneous knowledge items');
+  */

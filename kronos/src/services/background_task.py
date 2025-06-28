@@ -1,17 +1,29 @@
 from config.logger import logger
 import asyncio
+import os
+import torch
 from datetime import datetime, timedelta
 from pathlib import Path
 
 from crud.planka import get_updated_cards, get_card_complete_data
 from crud.wiki import get_updated_pages, get_page_complete_data
+from crud.import_data import import_files_with_tag
+from crud.source_files import insert_source_file, sha256_of_text, file_exists_by_sha256
+from crud.chunks import insert_chunk
 from utils.file_export import create_export_directory, write_card_to_file
 from utils.wiki_export import create_wiki_export_directory, write_wiki_page_to_file, sanitize_filename
+from utils.data_import import process_imported_data_and_archive, load_files as load_exported_files
+from utils.import_utils import check_gpu, get_model_cache_folder, load_sentence_transformer_model, extract_tag_from_path, get_exported_files
+from ingest.loader import load_files
+from ingest.chunker import smart_overlap_chunk
+from ingest.embedder import embed_chunks
+from config.check_env import check_env_vars
 
 async def sync_databases():
     """Main synchronization function."""
     await export_updated_cards(datetime.now() - timedelta(days=10))
     await export_updated_wiki_pages(datetime.now() - timedelta(days=10))
+    await import_exported_data()
     """
     while True:
         logger("Starting database synchronization task...")
@@ -123,6 +135,31 @@ async def export_single_wiki_page(page):
         
     except Exception as e:
         logger(f"Error exporting wiki page {page_id}: {str(e)}")
+
+async def import_exported_data():
+    """Import exported data files into the knowledge base and archive them."""
+    logger("Starting import of exported data files...")
+    
+    try:
+        data_path = os.getenv('DATA_PATH', '/app/data')
+        
+        # Use the new import and archiving function
+        results = process_imported_data_and_archive(data_path)
+        
+        if results['success']:
+            logger(f"Import completed: {results['imported_folders']} folders, {results['imported_files']} files imported", level='INFO')
+            logger(f"Archived {len(results['archived_folders'])} folders", level='INFO')
+            
+            if results['errors']:
+                logger(f"Import had {len(results['errors'])} errors:", level='WARNING')
+                for error in results['errors']:
+                    logger(f"  - {error}", level='WARNING')
+        else:
+            error_msg = results.get('error', 'Unknown error during import')
+            logger(f"Import failed: {error_msg}", level='ERROR')
+            
+    except Exception as e:
+        logger(f"Error during import and archiving process: {str(e)}", level='ERROR')
 
 async def check_and_migrate_data():
     """Check for new data to migrate between databases."""
