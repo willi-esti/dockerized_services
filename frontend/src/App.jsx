@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Send, Bot, User, AlertCircle, CheckCircle, ChevronDown, ChevronUp, Brain, Search, FileText, Clock } from 'lucide-react';
 import { kronosApi } from './services/api';
 import ThinkingProcess from './components/ThinkingProcess';
+import TokenUsage from './components/TokenUsage';
 
 const App = () => {
   const [messages, setMessages] = useState([]);
@@ -72,6 +73,7 @@ const App = () => {
         iterations: response.iterations,
         suggestions: response.suggestions || [],
         thinkingProcess: response.thinking_process || [],
+        tokenUsage: response.token_usage || null,
       };
 
       setMessages(prev => [...prev, aiMessage]);
@@ -229,6 +231,14 @@ const App = () => {
                   <ThinkingProcess 
                     steps={message.thinkingProcess} 
                     isVisible={false}
+                  />
+                )}
+                
+                {/* Token Usage */}
+                {message.tokenUsage && (
+                  <TokenUsage 
+                    tokenUsage={message.tokenUsage}
+                    isVisible={true}
                   />
                 )}
               </div>
