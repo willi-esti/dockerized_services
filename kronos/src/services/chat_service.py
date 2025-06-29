@@ -162,38 +162,69 @@ def process_chat(message: str, conversation_id: str = None, max_iterations: int 
         elif action_result["type"] == "search_results":
             # AI searched memory, add results to context and continue
             results = action_result.get("results", [])
+            result_type = action_result.get("result_type", "chunks")
+            search_method = action_result.get("search_method", "semantic")
             
-            thinking_steps.append({
-                "step": iteration,
-                "type": "database_search",
-                "title": f"🔍 Database Search",
-                "description": f"Searching for: '{action_result['query']}'",
-                "search_query": action_result["query"],
-                "search_type": action_result.get("search_type", "general"),
-                "results_count": action_result["count"],
-                "results_preview": [
+            # Create appropriate preview for complete files vs chunks
+            if result_type == "complete_files":
+                results_preview = [
+                    {
+                        "title": result.get('title', 'Untitled'),
+                        "file_path": result.get('file_path', ''),
+                        "file_type": result.get('file_type', ''),
+                        "content": result.get('content', '')[:150] + "..." if len(result.get('content', '')) > 150 else result.get('content', ''),
+                        "similarity": result.get('similarity', 'unknown'),
+                        "matching_chunks": result.get('matching_chunks', [])
+                    }
+                    for result in results[:3]
+                ]
+            else:
+                results_preview = [
                     {
                         "content": result.get('content', '')[:100] + "..." if len(result.get('content', '')) > 100 else result.get('content', ''),
                         "similarity": result.get('similarity', 'unknown')
                     }
                     for result in results[:3]
-                ],
+                ]
+            
+            thinking_steps.append({
+                "step": iteration,
+                "type": "database_search",
+                "title": f"🔍 Database Search ({search_method})",
+                "description": f"Searching for: '{action_result['query']}' using {search_method} search",
+                "search_query": action_result["query"],
+                "search_type": action_result.get("search_type", "general"),
+                "search_method": search_method,
+                "result_type": result_type,
+                "results_count": action_result["count"],
+                "results_preview": results_preview,
                 "timestamp": __import__('datetime').datetime.now().isoformat()
             })
             
             context["search_history"].append({
                 "query": action_result["query"],
                 "results": results,
-                "count": action_result["count"]
+                "count": action_result["count"],
+                "result_type": result_type
             })
             
             # Build context for next iteration
             if results:
                 context_parts = []
-                for result in results[:3]:  # Top 3 results
-                    context_parts.append(f"- {result.get('content', '')[:200]}...")
                 
-                initial_context = f"""Previous search for "{action_result['query']}" found {action_result['count']} results:
+                if result_type == "complete_files":
+                    for result in results[:3]:  # Top 3 results
+                        title = result.get('title', 'Untitled')
+                        content = result.get('content', '')
+                        # Use full content for AI context (truncate if too long)
+                        if len(content) > 1000:
+                            content = content[:1000] + "\n[Content truncated for brevity...]"
+                        context_parts.append(f"File: {title}\nContent:\n{content}\n")
+                else:
+                    for result in results[:3]:  # Top 3 results
+                        context_parts.append(f"- {result.get('content', '')[:200]}...")
+                
+                initial_context = f"""Previous search for "{action_result['query']}" found {action_result['count']} {result_type}:
 {chr(10).join(context_parts)}
 
 Based on this information, please provide a helpful response to the user's question: "{message}"
@@ -235,8 +266,15 @@ Please provide a response indicating no relevant information was found for: "{me
                     {
                         "query": query,
                         "type": data.get("type", "general"),
+                        "method": data.get("method", "semantic"),
+                        "result_type": data.get("result_type", "chunks"),
                         "results_count": data["count"],
-                        "preview": [r.get('content', '')[:80] + "..." for r in data["results"][:2]]
+                        "preview": (
+                            [{"title": r.get('title', 'Untitled'), "file_path": r.get('file_path', '')} 
+                             for r in data["results"][:2]] 
+                            if data.get("result_type") == "complete_files" 
+                            else [r.get('content', '')[:80] + "..." for r in data["results"][:2]]
+                        )
                     }
                     for query, data in search_results.items()
                 ],
@@ -244,7 +282,12 @@ Please provide a response indicating no relevant information was found for: "{me
             })
             
             context["search_history"].extend([
-                {"query": query, "results": data["results"], "count": data["count"]}
+                {
+                    "query": query, 
+                    "results": data["results"], 
+                    "count": data["count"],
+                    "result_type": data.get("result_type", "chunks")
+                }
                 for query, data in search_results.items()
             ])
             
@@ -252,9 +295,19 @@ Please provide a response indicating no relevant information was found for: "{me
             context_parts = []
             for query, data in search_results.items():
                 if data["results"]:
-                    context_parts.append(f"\nSearch '{query}' found {data['count']} results:")
-                    for result in data["results"][:2]:  # Top 2 per search
-                        context_parts.append(f"- {result.get('content', '')[:150]}...")
+                    result_type = data.get("result_type", "chunks")
+                    context_parts.append(f"\nSearch '{query}' found {data['count']} {result_type}:")
+                    
+                    if result_type == "complete_files":
+                        for result in data["results"][:2]:  # Top 2 per search
+                            title = result.get('title', 'Untitled')
+                            content = result.get('content', '')
+                            if len(content) > 300:
+                                content = content[:300] + "\n[Content truncated...]"
+                            context_parts.append(f"File: {title}\nContent:\n{content}\n")
+                    else:
+                        for result in data["results"][:2]:  # Top 2 per search
+                            context_parts.append(f"- {result.get('content', '')[:150]}...")
                 else:
                     context_parts.append(f"\nSearch '{query}' found no results.")
             

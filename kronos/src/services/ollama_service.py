@@ -35,14 +35,17 @@ You MUST respond with valid JSON in this exact format:
 ALLOWED ACTIONS:
 
 1. "search_memory" - Search the knowledge database for more information
+   Returns COMPLETE FILES (not just chunks) that match your query
    {
      "action": "search_memory",
      "reasoning": "explain why search is needed",
      "data": {
        "query": "specific search terms",
-       "search_type": "general|code|documentation|meeting_notes"
+       "search_type": "general|code|documentation|meeting_notes",
+       "search_method": "semantic|full_text"  // optional, defaults to semantic
      }
    }
+   Note: This now returns complete files with full content, not just excerpts
 
 2. "respond" - Provide direct answer when you have enough information
    {
@@ -66,16 +69,23 @@ ALLOWED ACTIONS:
    }
 
 4. "multi_search" - Perform multiple related searches
+   Returns COMPLETE FILES for each search query
    {
      "action": "multi_search",
      "reasoning": "explain why multiple searches are needed",
      "data": {
        "searches": [
-         {"query": "search1", "type": "documentation"},
-         {"query": "search2", "type": "code"}
+         {"query": "search1", "type": "documentation", "method": "semantic"},
+         {"query": "search2", "type": "code", "method": "full_text"}
        ]
      }
    }
+
+SEARCH CAPABILITIES:
+- Semantic search: Uses AI embeddings to find conceptually similar content
+- Full-text search: Traditional text matching for exact terms
+- Always returns COMPLETE FILES, not fragments
+- Each result includes full file content, title, source, and file path
 
 RULES:
 - Always respond with valid JSON
@@ -84,8 +94,9 @@ RULES:
 - If the query is vague, use "ask_clarification"
 - If you need specific information not in context, use "search_memory"
 - For complex topics, consider "multi_search"
+- Remember that search results now contain complete files with full content
 
-Remember: You are here to help users navigate and understand their knowledge base efficiently."""
+Remember: You are here to help users navigate and understand their knowledge base efficiently. Your searches now return complete files instead of just chunks, giving you access to full context and content."""
     
     def generate_response(self, user_message: str, context: str = "", model: str = None) -> dict:
         """Generate a structured JSON response using Ollama."""

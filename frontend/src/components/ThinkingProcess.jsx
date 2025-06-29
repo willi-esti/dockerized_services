@@ -99,14 +99,52 @@ const ThinkingProcess = ({ steps, isVisible = false }) => {
                   
                   {step.results_preview && step.results_preview.length > 0 && (
                     <div className="mt-2">
-                      <div className="text-xs font-medium mb-1">Preview:</div>
+                      <div className="text-xs font-medium mb-1">
+                        {step.result_type === 'complete_files' ? 'Files Found:' : 'Preview:'}
+                      </div>
                       <div className="space-y-1">
                         {step.results_preview.map((result, idx) => (
                           <div key={idx} className="text-xs bg-white bg-opacity-70 p-2 rounded">
-                            <div className="text-gray-800">{result.content}</div>
-                            {result.similarity && (
-                              <div className="text-gray-500 mt-1">
-                                Similarity: {result.similarity}
+                            {step.result_type === 'complete_files' ? (
+                              <div>
+                                <div className="font-medium text-gray-800">
+                                  📄 {result.title || 'Untitled'}
+                                </div>
+                                {result.file_path && (
+                                  <div className="text-gray-600 mb-1">
+                                    📁 {result.file_path}
+                                  </div>
+                                )}
+                                {result.file_type && (
+                                  <div className="text-gray-600 mb-1">
+                                    📋 Type: {result.file_type}
+                                  </div>
+                                )}
+                                {result.content && (
+                                  <div className="text-gray-700 mt-1 max-h-20 overflow-y-auto">
+                                    {result.content.substring(0, 200)}
+                                    {result.content.length > 200 && '...'}
+                                  </div>
+                                )}
+                                {result.similarity && (
+                                  <div className="text-gray-500 mt-1">
+                                    🎯 Relevance: {(result.similarity * 100).toFixed(1)}%
+                                  </div>
+                                )}
+                                {result.matching_chunks && result.matching_chunks.length > 0 && (
+                                  <div className="text-gray-500 mt-1">
+                                    🔍 Matching sections: {result.matching_chunks.length}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div>
+                                <div className="text-gray-800">{result.content}</div>
+                                {result.similarity && (
+                                  <div className="text-gray-500 mt-1">
+                                    Similarity: {result.similarity}
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -129,15 +167,35 @@ const ThinkingProcess = ({ steps, isVisible = false }) => {
                               <span className="font-medium">Type: </span>
                               {search.type}
                             </div>
+                            {search.method && (
+                              <div>
+                                <span className="font-medium">Method: </span>
+                                {search.method}
+                              </div>
+                            )}
                             <div>
                               <span className="font-medium">Results: </span>
                               {search.results_count}
+                              {search.result_type === 'complete_files' && ' files'}
                             </div>
                             {search.preview && search.preview.length > 0 && (
                               <div className="mt-1 text-gray-600">
-                                {search.preview.map((p, pidx) => (
-                                  <div key={pidx}>• {p}</div>
-                                ))}
+                                {search.result_type === 'complete_files' ? (
+                                  search.preview.map((p, pidx) => (
+                                    <div key={pidx} className="mb-1">
+                                      📄 {typeof p === 'object' ? (p.title || 'Untitled') : p}
+                                      {typeof p === 'object' && p.file_path && (
+                                        <div className="text-gray-500 text-xs ml-2">
+                                          📁 {p.file_path}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))
+                                ) : (
+                                  search.preview.map((p, pidx) => (
+                                    <div key={pidx}>• {p}</div>
+                                  ))
+                                )}
                               </div>
                             )}
                           </div>

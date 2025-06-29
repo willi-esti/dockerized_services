@@ -1,4 +1,5 @@
 from services import memory_service
+from crud.complete_file_search import search_complete_files, search_files_by_content_text
 from config.logger import logger
 import json
 
@@ -32,9 +33,10 @@ class ActionHandler:
             }
     
     def _handle_search_memory(self, data: dict, context: dict = None) -> dict:
-        """Handle memory search action."""
+        """Handle memory search action - now returns complete files instead of chunks."""
         query = data.get('query', '')
         search_type = data.get('search_type', 'general')
+        search_method = data.get('search_method', 'semantic')  # 'semantic' or 'full_text'
         
         if not query:
             return {
@@ -42,17 +44,23 @@ class ActionHandler:
                 "message": "No search query provided"
             }
         
-        logger(f"Searching memory for: {query} (type: {search_type})", 'INFO')
+        logger(f"Searching complete files for: {query} (type: {search_type}, method: {search_method})", 'INFO')
         
-        # Perform the search
-        results = memory_service.search_memory(query, top_k=5)
+        # Choose search method based on request
+        if search_method == 'full_text':
+            results = search_files_by_content_text(query, top_k=5)
+        else:
+            # Default to semantic search with complete files
+            results = search_complete_files(query, top_k=5)
         
         return {
             "type": "search_results",
             "query": query,
             "search_type": search_type,
+            "search_method": search_method,
             "results": results,
-            "count": len(results) if results else 0
+            "count": len(results) if results else 0,
+            "result_type": "complete_files"
         }
     
     def _handle_respond(self, data: dict) -> dict:
@@ -80,7 +88,7 @@ class ActionHandler:
         }
     
     def _handle_multi_search(self, data: dict, context: dict = None) -> dict:
-        """Handle multiple searches action."""
+        """Handle multiple searches action - now returns complete files instead of chunks."""
         searches = data.get('searches', [])
         
         if not searches:
@@ -94,14 +102,23 @@ class ActionHandler:
         for search in searches:
             query = search.get('query', '')
             search_type = search.get('type', 'general')
+            search_method = search.get('method', 'semantic')
             
             if query:
-                logger(f"Multi-search: {query} (type: {search_type})", 'INFO')
-                results = memory_service.search_memory(query, top_k=3)
+                logger(f"Multi-search: {query} (type: {search_type}, method: {search_method})", 'INFO')
+                
+                # Choose search method
+                if search_method == 'full_text':
+                    results = search_files_by_content_text(query, top_k=3)
+                else:
+                    results = search_complete_files(query, top_k=3)
+                
                 all_results[query] = {
                     "type": search_type,
+                    "method": search_method,
                     "results": results,
-                    "count": len(results) if results else 0
+                    "count": len(results) if results else 0,
+                    "result_type": "complete_files"
                 }
         
         return {
