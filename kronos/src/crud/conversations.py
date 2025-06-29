@@ -129,3 +129,82 @@ def build_conversation_context(conversation_id: str, max_context_length: int = 2
     result = "".join(context_parts)
     logger(f"Built conversation context: {result[:200]}...", 'INFO')
     return result
+
+def get_all_conversations(limit: int = 50, offset: int = 0):
+    """Get all conversations with basic info and message count."""
+    try:
+        conn = get_conn()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT 
+                c.id, 
+                c.created_at, 
+                c.updated_at,
+                COUNT(cm.id) as message_count,
+                MIN(CASE WHEN cm.sender = 'user' THEN cm.message END) as first_user_message
+            FROM conversations c
+            LEFT JOIN conversation_messages cm ON c.id = cm.conversation_id
+            GROUP BY c.id, c.created_at, c.updated_at
+            ORDER BY c.updated_at DESC
+            LIMIT %s OFFSET %s
+        """, (limit, offset))
+        
+        conversations = []
+        for row in cursor.fetchall():
+            conversations.append({
+                "id": row[0],
+                "created_at": row[1].isoformat() if row[1] else None,
+                "updated_at": row[2].isoformat() if row[2] else None,
+                "message_count": row[3] or 0,
+                "first_user_message": row[4] or "New Conversation",
+                "title": (row[4] or "New Conversation")[:50] + ("..." if row[4] and len(row[4]) > 50 else "")
+            })
+        
+        cursor.close()
+        conn.close()
+        
+        logger(f"Retrieved {len(conversations)} conversations", 'INFO')
+        return conversations
+        
+    except Exception as e:
+        logger(f"Error getting conversations: {str(e)}", 'ERROR')
+        return []
+
+def get_conversation_details(conversation_id: str):
+    """Get full conversation details including all messages."""
+    try:
+        conn = get_conn()
+        cursor = conn.cursor()
+        
+        # Get conversation info
+        cursor.execute("""
+            SELECT id, created_at, updated_at
+            FROM conversations
+            WHERE id = %s
+        """, (conversation_id,))
+        
+        conversation_row = cursor.fetchone()
+        if not conversation_row:
+            cursor.close()
+            conn.close()
+            return None
+        
+        # Get all messages
+        messages = get_conversation_history(conversation_id, limit=1000)
+        
+        cursor.close()
+        conn.close()
+        
+        return {
+            "id": conversation_row[0],
+            "created_at": conversation_row[1].isoformat() if conversation_row[1] else None,
+            "updated_at": conversation_row[2].isoformat() if conversation_row[2] else None,
+            "message_count": len(messages),
+            "messages": messages,
+            "title": messages[0]["message"][:50] + ("..." if len(messages[0]["message"]) > 50 else "") if messages else "Empty Conversation"
+        }
+        
+    except Exception as e:
+        logger(f"Error getting conversation details: {str(e)}", 'ERROR')
+        return None

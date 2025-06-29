@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Bot, User, AlertCircle, CheckCircle, ChevronDown, ChevronUp, Brain, Search, FileText, Clock } from 'lucide-react';
+import { Send, Bot, User, AlertCircle, CheckCircle, ChevronDown, ChevronUp, Brain, Search, FileText, Clock, MessageCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { kronosApi } from './services/api';
 import ThinkingProcess from './components/ThinkingProcess';
 import TokenUsage from './components/TokenUsage';
+import ConversationHistory from './components/ConversationHistory';
 
 const App = () => {
   const [messages, setMessages] = useState([]);
@@ -11,6 +12,8 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [ollamaStatus, setOllamaStatus] = useState(null);
   const [conversationId, setConversationId] = useState(null);
+  const [conversations, setConversations] = useState([]);
+  const [showConversationHistory, setShowConversationHistory] = useState(false);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -22,9 +25,19 @@ const App = () => {
   }, [messages]);
 
   useEffect(() => {
-    // Check Ollama status on mount
+    // Check Ollama status and load conversations on mount
     checkOllamaStatus();
+    loadConversations();
   }, []);
+
+  const loadConversations = async () => {
+    try {
+      const conversationList = await kronosApi.getConversations();
+      setConversations(conversationList);
+    } catch (error) {
+      console.error('Failed to load conversations:', error);
+    }
+  };
 
   const checkOllamaStatus = async () => {
     try {
@@ -39,6 +52,38 @@ const App = () => {
   const startNewConversation = () => {
     setConversationId(null);
     setMessages([]);
+    // Reload conversations to update the list
+    loadConversations();
+  };
+
+  const selectConversation = async (conversation) => {
+    try {
+      setIsLoading(true);
+      const conversationDetails = await kronosApi.getConversation(conversation.id);
+      
+      // Convert conversation messages to the format expected by the UI
+      const formattedMessages = conversationDetails.messages.map((msg, index) => ({
+        id: index,
+        text: msg.message,
+        sender: msg.sender,
+        timestamp: new Date(msg.timestamp).toLocaleTimeString(),
+        confidence: msg.metadata?.confidence,
+        sources: msg.metadata?.sources || [],
+        actionTaken: msg.metadata?.action_taken,
+        iterations: msg.metadata?.iterations,
+        suggestions: msg.metadata?.suggestions || [],
+        thinkingProcess: msg.metadata?.thinking_process || [],
+        tokenUsage: msg.metadata?.token_usage || null,
+      }));
+
+      setMessages(formattedMessages);
+      setConversationId(conversation.id);
+      setShowConversationHistory(false); // Hide on mobile after selection
+    } catch (error) {
+      console.error('Failed to load conversation:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const sendMessage = async () => {
@@ -78,6 +123,9 @@ const App = () => {
       };
 
       setMessages(prev => [...prev, aiMessage]);
+      
+      // Reload conversations to update the list with new message
+      loadConversations();
     } catch (error) {
       console.error('Failed to send message:', error);
       const errorMessage = {
@@ -101,212 +149,232 @@ const App = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-100">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b px-6 py-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-800">Kronos Chat</h1>
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={startNewConversation}
-              className="px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
-            >
-              New Chat
-            </button>
-            {ollamaStatus?.available ? (
-              <div className="flex items-center text-green-600">
-                <CheckCircle size={16} className="mr-1" />
-                <span className="text-sm">AI Online</span>
-              </div>
-            ) : (
-              <div className="flex items-center text-red-600">
-                <AlertCircle size={16} className="mr-1" />
-                <span className="text-sm">AI Offline</span>
-              </div>
-            )}
+    <div className="flex h-screen bg-gray-100">
+      {/* Conversation History Sidebar */}
+      <ConversationHistory
+        conversations={conversations}
+        currentConversationId={conversationId}
+        onSelectConversation={selectConversation}
+        isVisible={showConversationHistory}
+        onToggle={() => setShowConversationHistory(!showConversationHistory)}
+      />
+
+      {/* Main Chat Area */}
+      <div className="flex flex-col flex-1 min-w-0">
+        {/* Header */}
+        <div className="bg-white shadow-sm border-b px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <button
+                onClick={() => setShowConversationHistory(!showConversationHistory)}
+                className="lg:hidden mr-3 p-2 rounded-lg hover:bg-gray-100"
+              >
+                <MessageCircle size={20} className="text-gray-600" />
+              </button>
+              <h1 className="text-2xl font-bold text-gray-800">Kronos Chat</h1>
+            </div>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={startNewConversation}
+                className="px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+              >
+                New Chat
+              </button>
+              {ollamaStatus?.available ? (
+                <div className="flex items-center text-green-600">
+                  <CheckCircle size={16} className="mr-1" />
+                  <span className="text-sm">AI Online</span>
+                </div>
+              ) : (
+                <div className="flex items-center text-red-600">
+                  <AlertCircle size={16} className="mr-1" />
+                  <span className="text-sm">AI Offline</span>
+                </div>
+              )}
+            </div>
           </div>
+          {ollamaStatus?.models?.length > 0 && (
+            <p className="text-sm text-gray-600 mt-1">
+              Models: {ollamaStatus.models.join(', ')}
+            </p>
+          )}
         </div>
-        {ollamaStatus?.models?.length > 0 && (
-          <p className="text-sm text-gray-600 mt-1">
-            Models: {ollamaStatus.models.join(', ')}
-          </p>
-        )}
-      </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-        {messages.length === 0 && (
-          <div className="text-center text-gray-500 mt-8">
-            <Bot size={48} className="mx-auto mb-4 text-gray-400" />
-            <p className="text-lg">Welcome to Kronos Chat!</p>
-            <p className="text-sm">Ask me anything about your data and knowledge base.</p>
-          </div>
-        )}
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+          {messages.length === 0 && (
+            <div className="text-center text-gray-500 mt-8">
+              <Bot size={48} className="mx-auto mb-4 text-gray-400" />
+              <p className="text-lg">Welcome to Kronos Chat!</p>
+              <p className="text-sm">Ask me anything about your data and knowledge base.</p>
+            </div>
+          )}
 
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
+          {messages.map((message) => (
             <div
-              className={`flex max-w-xs lg:max-w-md xl:max-w-lg ${
-                message.sender === 'user' ? 'flex-row-reverse' : 'flex-row'
-              }`}
+              key={message.id}
+              className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`flex-shrink-0 ${
-                  message.sender === 'user' ? 'ml-2' : 'mr-2'
+                className={`flex max-w-xs lg:max-w-md xl:max-w-lg ${
+                  message.sender === 'user' ? 'flex-row-reverse' : 'flex-row'
                 }`}
               >
-                {message.sender === 'user' ? (
-                  <User size={32} className="bg-blue-500 text-white p-1 rounded-full" />
-                ) : (
-                  <Bot size={32} className={`p-1 rounded-full ${
-                    message.isError ? 'bg-red-500 text-white' : 'bg-gray-500 text-white'
-                  }`} />
-                )}
-              </div>
-              <div>
                 <div
-                  className={`px-4 py-2 rounded-lg ${
-                    message.sender === 'user'
-                      ? 'bg-blue-500 text-white'
-                      : message.isError
-                      ? 'bg-red-100 text-red-800'
-                      : 'bg-white text-gray-800 shadow'
+                  className={`flex-shrink-0 ${
+                    message.sender === 'user' ? 'ml-2' : 'mr-2'
                   }`}
                 >
                   {message.sender === 'user' ? (
-                    <p className="whitespace-pre-wrap">{message.text}</p>
+                    <User size={32} className="bg-blue-500 text-white p-1 rounded-full" />
                   ) : (
-                    <div className="prose prose-sm max-w-none">
-                      <ReactMarkdown 
-                        components={{
-                          p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
-                          h1: ({children}) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
-                          h2: ({children}) => <h2 className="text-base font-bold mb-2">{children}</h2>,
-                          h3: ({children}) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
-                          ul: ({children}) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
-                          ol: ({children}) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
-                          li: ({children}) => <li className="mb-1">{children}</li>,
-                          strong: ({children}) => <strong className="font-bold">{children}</strong>,
-                          em: ({children}) => <em className="italic">{children}</em>,
-                          code: ({children}) => <code className="bg-gray-100 px-1 rounded text-sm font-mono">{children}</code>,
-                          pre: ({children}) => <pre className="bg-gray-100 p-2 rounded text-sm font-mono overflow-x-auto">{children}</pre>,
-                          blockquote: ({children}) => <blockquote className="border-l-4 border-gray-300 pl-3 italic">{children}</blockquote>,
-                        }}
-                      >
-                        {message.text}
-                      </ReactMarkdown>
+                    <Bot size={32} className={`p-1 rounded-full ${
+                      message.isError ? 'bg-red-500 text-white' : 'bg-gray-500 text-white'
+                    }`} />
+                  )}
+                </div>
+                <div>
+                  <div
+                    className={`px-4 py-2 rounded-lg ${
+                      message.sender === 'user'
+                        ? 'bg-blue-500 text-white'
+                        : message.isError
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-white text-gray-800 shadow'
+                    }`}
+                  >
+                    {message.sender === 'user' ? (
+                      <p className="whitespace-pre-wrap">{message.text}</p>
+                    ) : (
+                      <div className="prose prose-sm max-w-none">
+                        <ReactMarkdown 
+                          components={{
+                            p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
+                            h1: ({children}) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
+                            h2: ({children}) => <h2 className="text-base font-bold mb-2">{children}</h2>,
+                            h3: ({children}) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
+                            ul: ({children}) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
+                            ol: ({children}) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
+                            li: ({children}) => <li className="mb-1">{children}</li>,
+                            strong: ({children}) => <strong className="font-bold">{children}</strong>,
+                            em: ({children}) => <em className="italic">{children}</em>,
+                            code: ({children}) => <code className="bg-gray-100 px-1 rounded text-sm font-mono">{children}</code>,
+                            pre: ({children}) => <pre className="bg-gray-100 p-2 rounded text-sm font-mono overflow-x-auto">{children}</pre>,
+                            blockquote: ({children}) => <blockquote className="border-l-4 border-gray-300 pl-3 italic">{children}</blockquote>,
+                          }}
+                        >
+                          {message.text}
+                        </ReactMarkdown>
+                      </div>
+                    )}
+                  </div>
+                  <p className={`text-xs text-gray-500 mt-1 ${
+                    message.sender === 'user' ? 'text-right' : 'text-left'
+                  }`}>
+                    {message.timestamp}
+                    {message.confidence && (
+                      <span className={`ml-2 px-1 rounded text-xs ${
+                        message.confidence === 'high' ? 'bg-green-100 text-green-800' :
+                        message.confidence === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {message.confidence} confidence
+                      </span>
+                    )}
+                    {message.iterations && (
+                      <span className="ml-2 text-gray-400">
+                        ({message.iterations} steps)
+                      </span>
+                    )}
+                  </p>
+                  {message.suggestions && message.suggestions.length > 0 && (
+                    <div className="mt-2 p-2 bg-blue-50 rounded text-sm">
+                      <p className="font-semibold text-blue-800 mb-1">Suggestions:</p>
+                      {message.suggestions.map((suggestion, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => setInputMessage(suggestion)}
+                          className="block w-full text-left p-1 hover:bg-blue-100 rounded text-blue-700"
+                        >
+                          • {suggestion}
+                        </button>
+                      ))}
                     </div>
                   )}
-                </div>
-                <p className={`text-xs text-gray-500 mt-1 ${
-                  message.sender === 'user' ? 'text-right' : 'text-left'
-                }`}>
-                  {message.timestamp}
-                  {message.confidence && (
-                    <span className={`ml-2 px-1 rounded text-xs ${
-                      message.confidence === 'high' ? 'bg-green-100 text-green-800' :
-                      message.confidence === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {message.confidence} confidence
-                    </span>
+                  {message.sources && message.sources.length > 0 && (
+                    <div className="mt-2 p-2 bg-green-50 rounded text-xs">
+                      <p className="font-semibold text-green-800">Sources:</p>
+                      {message.sources.map((source, idx) => (
+                        <p key={idx} className="text-green-700">
+                          • {source}
+                        </p>
+                      ))}
+                    </div>
                   )}
-                  {message.iterations && (
-                    <span className="ml-2 text-gray-400">
-                      ({message.iterations} steps)
-                    </span>
+                  {message.actionTaken && (
+                    <div className="mt-1 text-xs text-gray-400">
+                      Action: {message.actionTaken}
+                    </div>
                   )}
-                </p>
-                {message.suggestions && message.suggestions.length > 0 && (
-                  <div className="mt-2 p-2 bg-blue-50 rounded text-sm">
-                    <p className="font-semibold text-blue-800 mb-1">Suggestions:</p>
-                    {message.suggestions.map((suggestion, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setInputMessage(suggestion)}
-                        className="block w-full text-left p-1 hover:bg-blue-100 rounded text-blue-700"
-                      >
-                        • {suggestion}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {message.sources && message.sources.length > 0 && (
-                  <div className="mt-2 p-2 bg-green-50 rounded text-xs">
-                    <p className="font-semibold text-green-800">Sources:</p>
-                    {message.sources.map((source, idx) => (
-                      <p key={idx} className="text-green-700">
-                        • {source}
-                      </p>
-                    ))}
-                  </div>
-                )}
-                {message.actionTaken && (
-                  <div className="mt-1 text-xs text-gray-400">
-                    Action: {message.actionTaken}
-                  </div>
-                )}
 
-                {/* Thinking Process */}
-                {message.thinkingProcess && message.thinkingProcess.length > 0 && (
-                  <ThinkingProcess 
-                    steps={message.thinkingProcess} 
-                    isVisible={false}
-                  />
-                )}
-                
-                {/* Token Usage */}
-                {message.tokenUsage && (
-                  <TokenUsage 
-                    tokenUsage={message.tokenUsage}
-                    isVisible={true}
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
-
-        {isLoading && (
-          <div className="flex justify-start">
-            <div className="flex flex-row">
-              <Bot size={32} className="bg-gray-500 text-white p-1 rounded-full mr-2" />
-              <div className="bg-white text-gray-800 shadow px-4 py-2 rounded-lg">
-                <div className="flex space-x-1">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                  {/* Thinking Process */}
+                  {message.thinkingProcess && message.thinkingProcess.length > 0 && (
+                    <ThinkingProcess 
+                      steps={message.thinkingProcess} 
+                      isVisible={false}
+                    />
+                  )}
+                  
+                  {/* Token Usage */}
+                  {message.tokenUsage && (
+                    <TokenUsage 
+                      tokenUsage={message.tokenUsage}
+                      isVisible={true}
+                    />
+                  )}
                 </div>
               </div>
             </div>
+          ))}
+
+          {isLoading && (
+            <div className="flex justify-start">
+              <div className="flex flex-row">
+                <Bot size={32} className="bg-gray-500 text-white p-1 rounded-full mr-2" />
+                <div className="bg-white text-gray-800 shadow px-4 py-2 rounded-lg">
+                  <div className="flex space-x-1">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input */}
+        <div className="bg-white border-t px-6 py-4">
+          <div className="flex space-x-2">
+            <textarea
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Type your message here..."
+              className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              rows="1"
+              disabled={isLoading}
+            />
+            <button
+              onClick={sendMessage}
+              disabled={isLoading || !inputMessage.trim()}
+              className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              <Send size={20} />
+            </button>
           </div>
-        )}
-
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input */}
-      <div className="bg-white border-t px-6 py-4">
-        <div className="flex space-x-2">
-          <textarea
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Type your message here..."
-            className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-            rows="1"
-            disabled={isLoading}
-          />
-          <button
-            onClick={sendMessage}
-            disabled={isLoading || !inputMessage.trim()}
-            className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white px-4 py-2 rounded-lg transition-colors"
-          >
-            <Send size={20} />
-          </button>
         </div>
       </div>
     </div>

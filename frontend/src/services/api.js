@@ -32,8 +32,14 @@ export const kronosApi = {
   },
 
   // Get conversations
-  getConversations: async () => {
-    const response = await api.get('/conversations');
+  getConversations: async (limit = 50, offset = 0) => {
+    const response = await api.get(`/api/v1/conversations?limit=${limit}&offset=${offset}`);
+    return response.data;
+  },
+
+  // Get specific conversation
+  getConversation: async (conversationId) => {
+    const response = await api.get(`/api/v1/conversations/${conversationId}`);
     return response.data;
   },
 
