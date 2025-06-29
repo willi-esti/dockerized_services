@@ -5,7 +5,9 @@ Script to test and display sync metadata.
 
 import sys
 import os
-sys.path.append('src')
+
+# Add the src directory to the path (going up two levels from test/sync/)
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from crud.sync_metadata import get_all_sync_metadata, initialize_sync_metadata
 from config.logger import logger

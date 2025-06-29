@@ -137,6 +137,10 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - OLLAMA_URL=http://${KRONOS_DOMAIN}:11434
+      - LOG_PATH=/app/logs
+      - LOG_LEVEL=INFO
+      - LOG_RETENTION_DAYS=30
+      - DEV_MODE=true
 #      - OLLAMA_URL=http://172.10.0.9:11434
     depends_on:
       - postgres

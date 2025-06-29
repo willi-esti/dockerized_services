@@ -2,7 +2,7 @@ import asyncio
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routes import chat, memory, tags, conversations
+from routes import chat, memory, tags, conversations, logs
 from config.logger import logger
 from services.background_task import sync_databases
 
@@ -28,6 +28,7 @@ app.include_router(chat.router)
 app.include_router(memory.router)
 app.include_router(tags.router)
 app.include_router(conversations.router)
+app.include_router(logs.router)
 
 @app.get("/")
 def read_root():
