@@ -14,6 +14,7 @@ class ChatResponse(BaseModel):
     iterations: Optional[int] = 1
     action_taken: Optional[str] = "respond"
     reasoning: Optional[str] = ""
+    thinking_process: Optional[List[dict]] = []
 
 class MemoryRequest(BaseModel):
     text: str

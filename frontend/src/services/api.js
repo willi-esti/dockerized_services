@@ -12,7 +12,7 @@ const api = axios.create({
 export const kronosApi = {
   // Chat endpoints
   sendMessage: async (message, conversationId = null) => {
-    const response = await api.post('/chat', {
+    const response = await api.post('/api/v1/chat/send', {
       message,
       conversation_id: conversationId,
     });
@@ -21,7 +21,7 @@ export const kronosApi = {
 
   // Ollama status
   getOllamaStatus: async () => {
-    const response = await api.get('/ollama/status');
+    const response = await api.get('/api/v1/ollama/status');
     return response.data;
   },
 

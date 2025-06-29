@@ -4,9 +4,9 @@ from services import chat_service
 from services.ollama_service import ollama_service
 from config.logger import logger
 
-router = APIRouter()
+router = APIRouter(prefix="/api/v1")
 
-@router.post("/chat", response_model=ChatResponse)
+@router.post("/chat/send", response_model=ChatResponse)
 def chat(request: ChatRequest):
     logger(f"Received chat request: {request.message} in conversation {request.conversation_id}")
     return chat_service.process_chat(request.message, request.conversation_id)

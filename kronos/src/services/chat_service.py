@@ -15,6 +15,9 @@ def process_chat(message: str, conversation_id: str = None, max_iterations: int 
         "iteration": 0
     }
     
+    # Track thinking process for frontend display
+    thinking_steps = []
+    
     # Build initial context from any existing conversation memory
     initial_context = ""
     
@@ -23,11 +26,30 @@ def process_chat(message: str, conversation_id: str = None, max_iterations: int 
         iteration += 1
         logger(f"Chat iteration {iteration}/{max_iterations}", 'INFO')
         
+        thinking_steps.append({
+            "step": iteration,
+            "type": "ai_thinking",
+            "title": f"🧠 AI Analysis (Step {iteration})",
+            "description": "Analyzing your question and deciding what action to take...",
+            "timestamp": __import__('datetime').datetime.now().isoformat()
+        })
+        
         # Get AI response with current context
         ai_response = ollama_service.generate_response(
             user_message=message,
             context=initial_context
         )
+        
+        # Add AI decision to thinking steps
+        thinking_steps.append({
+            "step": iteration,
+            "type": "ai_decision", 
+            "title": f"💭 AI Decision",
+            "description": f"Action: {ai_response.get('action', 'unknown')}",
+            "reasoning": ai_response.get('reasoning', 'No reasoning provided'),
+            "raw_response": ai_response,
+            "timestamp": __import__('datetime').datetime.now().isoformat()
+        })
         
         # Execute the action
         action_result = action_handler.execute_action(ai_response, context)
@@ -35,6 +57,15 @@ def process_chat(message: str, conversation_id: str = None, max_iterations: int 
         # Handle different action results
         if action_result["type"] == "response":
             # AI provided a direct response, we're done
+            thinking_steps.append({
+                "step": iteration,
+                "type": "final_response",
+                "title": "✅ Final Response Ready",
+                "description": "AI has enough information to provide a complete answer",
+                "confidence": action_result.get("confidence", "medium"),
+                "timestamp": __import__('datetime').datetime.now().isoformat()
+            })
+            
             return {
                 "reply": action_result["message"],
                 "relevant_memory": context.get("search_history", []),
@@ -43,11 +74,21 @@ def process_chat(message: str, conversation_id: str = None, max_iterations: int 
                 "conversation_id": conversation_id,
                 "iterations": iteration,
                 "action_taken": "respond",
-                "reasoning": ai_response.get("reasoning", "")
+                "reasoning": ai_response.get("reasoning", ""),
+                "thinking_process": thinking_steps
             }
             
         elif action_result["type"] == "clarification":
             # AI needs clarification from user
+            thinking_steps.append({
+                "step": iteration,
+                "type": "clarification_needed",
+                "title": "❓ Need More Information",
+                "description": "AI needs clarification to provide a better answer",
+                "question": action_result["question"],
+                "timestamp": __import__('datetime').datetime.now().isoformat()
+            })
+            
             return {
                 "reply": action_result["question"],
                 "relevant_memory": context.get("search_history", []),
@@ -56,12 +97,32 @@ def process_chat(message: str, conversation_id: str = None, max_iterations: int 
                 "conversation_id": conversation_id,
                 "iterations": iteration,
                 "action_taken": "ask_clarification",
-                "reasoning": ai_response.get("reasoning", "")
+                "reasoning": ai_response.get("reasoning", ""),
+                "thinking_process": thinking_steps
             }
             
         elif action_result["type"] == "search_results":
             # AI searched memory, add results to context and continue
             results = action_result.get("results", [])
+            
+            thinking_steps.append({
+                "step": iteration,
+                "type": "database_search",
+                "title": f"🔍 Database Search",
+                "description": f"Searching for: '{action_result['query']}'",
+                "search_query": action_result["query"],
+                "search_type": action_result.get("search_type", "general"),
+                "results_count": action_result["count"],
+                "results_preview": [
+                    {
+                        "content": result.get('content', '')[:100] + "..." if len(result.get('content', '')) > 100 else result.get('content', ''),
+                        "similarity": result.get('similarity', 'unknown')
+                    }
+                    for result in results[:3]
+                ],
+                "timestamp": __import__('datetime').datetime.now().isoformat()
+            })
+            
             context["search_history"].append({
                 "query": action_result["query"],
                 "results": results,
@@ -79,16 +140,51 @@ def process_chat(message: str, conversation_id: str = None, max_iterations: int 
 
 Based on this information, please provide a helpful response to the user's question: "{message}"
 """
+                
+                thinking_steps.append({
+                    "step": iteration,
+                    "type": "context_building",
+                    "title": "📝 Building Context",
+                    "description": f"Found {action_result['count']} relevant results, preparing context for next analysis",
+                    "context_length": len(initial_context),
+                    "timestamp": __import__('datetime').datetime.now().isoformat()
+                })
             else:
                 initial_context = f"""No results found for search: "{action_result['query']}"
 Please provide a response indicating no relevant information was found for: "{message}"
 """
+                
+                thinking_steps.append({
+                    "step": iteration,
+                    "type": "no_results",
+                    "title": "❌ No Results Found",
+                    "description": f"No relevant information found for '{action_result['query']}'",
+                    "timestamp": __import__('datetime').datetime.now().isoformat()
+                })
             
             # Continue to next iteration with new context
             
         elif action_result["type"] == "multi_search_results":
             # Handle multiple search results
             search_results = action_result.get("searches", {})
+            
+            thinking_steps.append({
+                "step": iteration,
+                "type": "multi_search",
+                "title": f"🔍 Multiple Database Searches",
+                "description": f"Performing {len(search_results)} related searches",
+                "searches": [
+                    {
+                        "query": query,
+                        "type": data.get("type", "general"),
+                        "results_count": data["count"],
+                        "preview": [r.get('content', '')[:80] + "..." for r in data["results"][:2]]
+                    }
+                    for query, data in search_results.items()
+                ],
+                "timestamp": __import__('datetime').datetime.now().isoformat()
+            })
+            
             context["search_history"].extend([
                 {"query": query, "results": data["results"], "count": data["count"]}
                 for query, data in search_results.items()
@@ -111,6 +207,14 @@ Based on this comprehensive information, please provide a helpful response to: "
             
         elif action_result["type"] == "error":
             # Handle errors
+            thinking_steps.append({
+                "step": iteration,
+                "type": "error",
+                "title": "⚠️ Error Occurred",
+                "description": f"Error: {action_result['message']}",
+                "timestamp": __import__('datetime').datetime.now().isoformat()
+            })
+            
             logger(f"Action error: {action_result['message']}", 'ERROR')
             return {
                 "reply": f"I encountered an error: {action_result['message']}",
@@ -120,10 +224,19 @@ Based on this comprehensive information, please provide a helpful response to: "
                 "conversation_id": conversation_id,
                 "iterations": iteration,
                 "action_taken": "error",
-                "reasoning": ai_response.get("reasoning", "")
+                "reasoning": ai_response.get("reasoning", ""),
+                "thinking_process": thinking_steps
             }
     
     # If we've exceeded max iterations, return what we have
+    thinking_steps.append({
+        "step": iteration,
+        "type": "max_iterations",
+        "title": "⏱️ Maximum Iterations Reached",
+        "description": f"Reached maximum of {max_iterations} iterations",
+        "timestamp": __import__('datetime').datetime.now().isoformat()
+    })
+    
     logger(f"Max iterations ({max_iterations}) reached", 'WARNING')
     return {
         "reply": "I've searched through available information but need more time to provide a complete answer. Could you rephrase your question or be more specific?",
@@ -133,5 +246,6 @@ Based on this comprehensive information, please provide a helpful response to: "
         "conversation_id": conversation_id,
         "iterations": iteration,
         "action_taken": "max_iterations_reached",
-        "reasoning": "Maximum iterations reached"
+        "reasoning": "Maximum iterations reached",
+        "thinking_process": thinking_steps
     }
