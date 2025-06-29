@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Bot, User, AlertCircle, CheckCircle, ChevronDown, ChevronUp, Brain, Search, FileText, Clock } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { kronosApi } from './services/api';
 import ThinkingProcess from './components/ThinkingProcess';
 import TokenUsage from './components/TokenUsage';
@@ -175,7 +176,30 @@ const App = () => {
                       : 'bg-white text-gray-800 shadow'
                   }`}
                 >
-                  <p className="whitespace-pre-wrap">{message.text}</p>
+                  {message.sender === 'user' ? (
+                    <p className="whitespace-pre-wrap">{message.text}</p>
+                  ) : (
+                    <div className="prose prose-sm max-w-none">
+                      <ReactMarkdown 
+                        components={{
+                          p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
+                          h1: ({children}) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
+                          h2: ({children}) => <h2 className="text-base font-bold mb-2">{children}</h2>,
+                          h3: ({children}) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
+                          ul: ({children}) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
+                          ol: ({children}) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
+                          li: ({children}) => <li className="mb-1">{children}</li>,
+                          strong: ({children}) => <strong className="font-bold">{children}</strong>,
+                          em: ({children}) => <em className="italic">{children}</em>,
+                          code: ({children}) => <code className="bg-gray-100 px-1 rounded text-sm font-mono">{children}</code>,
+                          pre: ({children}) => <pre className="bg-gray-100 p-2 rounded text-sm font-mono overflow-x-auto">{children}</pre>,
+                          blockquote: ({children}) => <blockquote className="border-l-4 border-gray-300 pl-3 italic">{children}</blockquote>,
+                        }}
+                      >
+                        {message.text}
+                      </ReactMarkdown>
+                    </div>
+                  )}
                 </div>
                 <p className={`text-xs text-gray-500 mt-1 ${
                   message.sender === 'user' ? 'text-right' : 'text-left'
