@@ -54,7 +54,11 @@ const App = () => {
         text: response.reply,
         sender: 'ai',
         timestamp: new Date().toLocaleTimeString(),
-        relevantMemory: response.relevant_memory,
+        confidence: response.confidence,
+        sources: response.sources || [],
+        actionTaken: response.action_taken,
+        iterations: response.iterations,
+        suggestions: response.suggestions || [],
       };
 
       setMessages(prev => [...prev, aiMessage]);
@@ -156,15 +160,48 @@ const App = () => {
                   message.sender === 'user' ? 'text-right' : 'text-left'
                 }`}>
                   {message.timestamp}
+                  {message.confidence && (
+                    <span className={`ml-2 px-1 rounded text-xs ${
+                      message.confidence === 'high' ? 'bg-green-100 text-green-800' :
+                      message.confidence === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {message.confidence} confidence
+                    </span>
+                  )}
+                  {message.iterations && (
+                    <span className="ml-2 text-gray-400">
+                      ({message.iterations} steps)
+                    </span>
+                  )}
                 </p>
-                {message.relevantMemory && message.relevantMemory.length > 0 && (
-                  <div className="mt-2 p-2 bg-blue-50 rounded text-xs">
-                    <p className="font-semibold text-blue-800">Relevant context found:</p>
-                    {message.relevantMemory.slice(0, 2).map((memory, idx) => (
-                      <p key={idx} className="text-blue-700 truncate">
-                        • {memory.content.substring(0, 100)}...
+                {message.suggestions && message.suggestions.length > 0 && (
+                  <div className="mt-2 p-2 bg-blue-50 rounded text-sm">
+                    <p className="font-semibold text-blue-800 mb-1">Suggestions:</p>
+                    {message.suggestions.map((suggestion, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setInputMessage(suggestion)}
+                        className="block w-full text-left p-1 hover:bg-blue-100 rounded text-blue-700"
+                      >
+                        • {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {message.sources && message.sources.length > 0 && (
+                  <div className="mt-2 p-2 bg-green-50 rounded text-xs">
+                    <p className="font-semibold text-green-800">Sources:</p>
+                    {message.sources.map((source, idx) => (
+                      <p key={idx} className="text-green-700">
+                        • {source}
                       </p>
                     ))}
+                  </div>
+                )}
+                {message.actionTaken && (
+                  <div className="mt-1 text-xs text-gray-400">
+                    Action: {message.actionTaken}
                   </div>
                 )}
               </div>

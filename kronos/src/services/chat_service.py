@@ -1,31 +1,137 @@
 from services import memory_service
 from services.ollama_service import ollama_service
+from services.action_handler import action_handler
+from config.logger import logger
 
-def process_chat(message: str, conversation_id: str = None):
-    # 1. Search for relevant memory
-    relevant_memory = memory_service.search_memory(message)
+def process_chat(message: str, conversation_id: str = None, max_iterations: int = 3):
+    """Process chat with structured AI responses and action execution."""
+    logger(f"Processing chat message: {message}", 'INFO')
     
-    # 2. Create context-aware prompt
-    context = ""
-    if relevant_memory:
-        context = "\n".join([f"- {item['content'][:200]}..." for item in relevant_memory[:3]])
+    # Initialize conversation context
+    context = {
+        "conversation_id": conversation_id,
+        "initial_query": message,
+        "search_history": [],
+        "iteration": 0
+    }
+    
+    # Build initial context from any existing conversation memory
+    initial_context = ""
+    
+    iteration = 0
+    while iteration < max_iterations:
+        iteration += 1
+        logger(f"Chat iteration {iteration}/{max_iterations}", 'INFO')
         
-    prompt = f"""You are an AI assistant with access to a knowledge base. Use the following context to help answer the user's question.
+        # Get AI response with current context
+        ai_response = ollama_service.generate_response(
+            user_message=message,
+            context=initial_context
+        )
+        
+        # Execute the action
+        action_result = action_handler.execute_action(ai_response, context)
+        
+        # Handle different action results
+        if action_result["type"] == "response":
+            # AI provided a direct response, we're done
+            return {
+                "reply": action_result["message"],
+                "relevant_memory": context.get("search_history", []),
+                "confidence": action_result.get("confidence", "medium"),
+                "sources": action_result.get("sources", []),
+                "conversation_id": conversation_id,
+                "iterations": iteration,
+                "action_taken": "respond",
+                "reasoning": ai_response.get("reasoning", "")
+            }
+            
+        elif action_result["type"] == "clarification":
+            # AI needs clarification from user
+            return {
+                "reply": action_result["question"],
+                "relevant_memory": context.get("search_history", []),
+                "confidence": "high",
+                "sources": [],
+                "conversation_id": conversation_id,
+                "iterations": iteration,
+                "action_taken": "ask_clarification",
+                "reasoning": ai_response.get("reasoning", "")
+            }
+            
+        elif action_result["type"] == "search_results":
+            # AI searched memory, add results to context and continue
+            results = action_result.get("results", [])
+            context["search_history"].append({
+                "query": action_result["query"],
+                "results": results,
+                "count": action_result["count"]
+            })
+            
+            # Build context for next iteration
+            if results:
+                context_parts = []
+                for result in results[:3]:  # Top 3 results
+                    context_parts.append(f"- {result.get('content', '')[:200]}...")
+                
+                initial_context = f"""Previous search for "{action_result['query']}" found {action_result['count']} results:
+{chr(10).join(context_parts)}
 
-Context from knowledge base:
-{context if context else "No relevant context found."}
+Based on this information, please provide a helpful response to the user's question: "{message}"
+"""
+            else:
+                initial_context = f"""No results found for search: "{action_result['query']}"
+Please provide a response indicating no relevant information was found for: "{message}"
+"""
+            
+            # Continue to next iteration with new context
+            
+        elif action_result["type"] == "multi_search_results":
+            # Handle multiple search results
+            search_results = action_result.get("searches", {})
+            context["search_history"].extend([
+                {"query": query, "results": data["results"], "count": data["count"]}
+                for query, data in search_results.items()
+            ])
+            
+            # Build comprehensive context
+            context_parts = []
+            for query, data in search_results.items():
+                if data["results"]:
+                    context_parts.append(f"\nSearch '{query}' found {data['count']} results:")
+                    for result in data["results"][:2]:  # Top 2 per search
+                        context_parts.append(f"- {result.get('content', '')[:150]}...")
+                else:
+                    context_parts.append(f"\nSearch '{query}' found no results.")
+            
+            initial_context = f"""Multiple searches performed:{''.join(context_parts)}
 
-User question: {message}
-
-Please provide a helpful response based on the context provided. If the context doesn't contain relevant information, let the user know and provide a general response."""
-
-    # 3. Generate AI response
-    ai_response = ollama_service.generate_response(prompt)
-
-    # TODO: Store conversation history
-
+Based on this comprehensive information, please provide a helpful response to: "{message}"
+"""
+            
+        elif action_result["type"] == "error":
+            # Handle errors
+            logger(f"Action error: {action_result['message']}", 'ERROR')
+            return {
+                "reply": f"I encountered an error: {action_result['message']}",
+                "relevant_memory": context.get("search_history", []),
+                "confidence": "low",
+                "sources": [],
+                "conversation_id": conversation_id,
+                "iterations": iteration,
+                "action_taken": "error",
+                "reasoning": ai_response.get("reasoning", "")
+            }
+    
+    # If we've exceeded max iterations, return what we have
+    logger(f"Max iterations ({max_iterations}) reached", 'WARNING')
     return {
-        "reply": ai_response,
-        "relevant_memory": relevant_memory,
-        "conversation_id": conversation_id
+        "reply": "I've searched through available information but need more time to provide a complete answer. Could you rephrase your question or be more specific?",
+        "relevant_memory": context.get("search_history", []),
+        "confidence": "low",
+        "sources": [],
+        "conversation_id": conversation_id,
+        "iterations": iteration,
+        "action_taken": "max_iterations_reached",
+        "reasoning": "Maximum iterations reached"
     }
