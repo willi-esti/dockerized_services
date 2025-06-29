@@ -11,9 +11,9 @@ def test_chat_api():
     """Test the chat API endpoint with a simple query."""
     url = "http://localhost:8000/api/v1/chat/send"
     
-    # Test with a simple greeting first
+    # Test with a query that should clearly identify data sources
     payload = {
-        "message": "Hello! Can you help me understand what documentation you have available?"
+        "message": "What are these cards? Are they from Planka? And what wiki documentation do you have?"
     }
     
     headers = {

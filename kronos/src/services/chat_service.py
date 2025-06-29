@@ -65,7 +65,7 @@ def process_chat(message: str, conversation_id: str = None, max_iterations: int 
             )
             
             # Determine model name from ollama service
-            model_name = getattr(ollama_service, 'model_name', 'llama3')
+            model_name = getattr(ollama_service, 'model_name', 'llama3.2')
             token_usage = calculate_token_usage_percentage(
                 used_tokens=token_info["total_input_tokens"],
                 model_name=model_name
@@ -352,16 +352,41 @@ Based on this comprehensive information, please provide a helpful response to: "
         "timestamp": __import__('datetime').datetime.now().isoformat()
     })
     
+    # Check if we have any search results to share
+    search_history = context.get("search_history", [])
+    if search_history:
+        # Build a response based on the search results we found
+        results_summary = []
+        for search_item in search_history:
+            query = search_item.get("query", "Unknown")
+            results = search_item.get("results", [])
+            results_summary.append(f"\nSearch for '{query}' found {len(results)} results:")
+            
+            for i, result in enumerate(results[:3]):  # Show top 3 results
+                title = result.get('title', result.get('content', '')[:50])
+                file_type = result.get('file_type', 'unknown')
+                results_summary.append(f"  {i+1}. {title} ({file_type})")
+                
+                # Show some content
+                content = result.get('content', '')
+                if content:
+                    preview = content[:200].replace('\n', ' ')
+                    results_summary.append(f"     Content: {preview}...")
+        
+        final_reply = f"Based on my search through the database, here's what I found:{''.join(results_summary)}\n\nI reached the maximum number of search iterations, but this should give you the information you were looking for."
+    else:
+        final_reply = "I've searched through available information but need more time to provide a complete answer. Could you rephrase your question or be more specific?"
+    
     logger(f"Max iterations ({max_iterations}) reached", 'WARNING')
     return {
-        "reply": "I've searched through available information but need more time to provide a complete answer. Could you rephrase your question or be more specific?",
+        "reply": final_reply,
         "relevant_memory": context.get("search_history", []),
-        "confidence": "low",
-        "sources": [],
+        "confidence": "medium" if search_history else "low",
+        "sources": [item.get("query", "") for item in search_history],
         "conversation_id": conversation_id,
         "iterations": iteration,
         "action_taken": "max_iterations_reached",
-        "reasoning": "Maximum iterations reached",
+        "reasoning": "Maximum iterations reached, sharing available search results",
         "thinking_process": thinking_steps,
         "token_usage": {
             **token_usage,
