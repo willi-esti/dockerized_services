@@ -8,6 +8,7 @@ const App = () => {
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [ollamaStatus, setOllamaStatus] = useState(null);
+  const [conversationId, setConversationId] = useState(null);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -33,6 +34,11 @@ const App = () => {
     }
   };
 
+  const startNewConversation = () => {
+    setConversationId(null);
+    setMessages([]);
+  };
+
   const sendMessage = async () => {
     if (!inputMessage.trim()) return;
 
@@ -48,7 +54,12 @@ const App = () => {
     setIsLoading(true);
 
     try {
-      const response = await kronosApi.sendMessage(inputMessage);
+      const response = await kronosApi.sendMessage(inputMessage, conversationId);
+      
+      // Set conversation ID from response if it's a new conversation
+      if (!conversationId && response.conversation_id) {
+        setConversationId(response.conversation_id);
+      }
       
       const aiMessage = {
         id: Date.now() + 1,
@@ -92,7 +103,13 @@ const App = () => {
       <div className="bg-white shadow-sm border-b px-6 py-4">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-800">Kronos Chat</h1>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={startNewConversation}
+              className="px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+            >
+              New Chat
+            </button>
             {ollamaStatus?.available ? (
               <div className="flex items-center text-green-600">
                 <CheckCircle size={16} className="mr-1" />

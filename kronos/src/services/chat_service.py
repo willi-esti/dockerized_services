@@ -2,10 +2,19 @@ from services import memory_service
 from services.ollama_service import ollama_service
 from services.action_handler import action_handler
 from config.logger import logger
+from crud.conversations import create_conversation, add_message_to_conversation, build_conversation_context
 
 def process_chat(message: str, conversation_id: str = None, max_iterations: int = 3):
     """Process chat with structured AI responses and action execution."""
     logger(f"Processing chat message: {message}", 'INFO')
+    
+    # Create new conversation if none provided
+    if not conversation_id:
+        conversation_id = create_conversation()
+        logger(f"Created new conversation: {conversation_id}", 'INFO')
+    
+    # Add user message to conversation history
+    add_message_to_conversation(conversation_id, message, "user")
     
     # Initialize conversation context
     context = {
@@ -18,8 +27,9 @@ def process_chat(message: str, conversation_id: str = None, max_iterations: int 
     # Track thinking process for frontend display
     thinking_steps = []
     
-    # Build initial context from any existing conversation memory
-    initial_context = ""
+    # Build initial context from conversation history
+    conversation_context = build_conversation_context(conversation_id)
+    initial_context = conversation_context
     
     iteration = 0
     while iteration < max_iterations:
@@ -66,6 +76,15 @@ def process_chat(message: str, conversation_id: str = None, max_iterations: int 
                 "timestamp": __import__('datetime').datetime.now().isoformat()
             })
             
+            # Save AI response to conversation history
+            ai_metadata = {
+                "confidence": action_result.get("confidence", "medium"),
+                "sources": action_result.get("sources", []),
+                "iterations": iteration,
+                "action_taken": "respond"
+            }
+            add_message_to_conversation(conversation_id, action_result["message"], "ai", ai_metadata)
+            
             return {
                 "reply": action_result["message"],
                 "relevant_memory": context.get("search_history", []),
@@ -88,6 +107,14 @@ def process_chat(message: str, conversation_id: str = None, max_iterations: int 
                 "question": action_result["question"],
                 "timestamp": __import__('datetime').datetime.now().isoformat()
             })
+            
+            # Save AI clarification question to conversation history
+            ai_metadata = {
+                "confidence": "high",
+                "action_taken": "ask_clarification",
+                "iterations": iteration
+            }
+            add_message_to_conversation(conversation_id, action_result["question"], "ai", ai_metadata)
             
             return {
                 "reply": action_result["question"],
