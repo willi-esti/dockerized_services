@@ -86,3 +86,29 @@ Example :
 ```
 run web up
 ```
+## WireGuard
+
+### Server
+
+Start wg-easy server:
+```bash
+run wireguard up
+```
+
+Access web UI via SSH tunnel:
+```bash
+ssh -L 127.0.0.1:51821:127.0.0.1:51821 -N user@server
+```
+Then open http://127.0.0.1:51821
+
+### Client Installation
+
+Install and auto-configure client on any Debian machine:
+```bash
+sudo ./scripts/install_wireguard_client.sh wg0.conf
+```
+
+Verify connection:
+```bash
+wg
+```

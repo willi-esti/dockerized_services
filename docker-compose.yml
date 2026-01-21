@@ -199,6 +199,32 @@ services:
     profiles:
       - pw
 
+  wg-easy:
+    image: ghcr.io/wg-easy/wg-easy
+    container_name: wg-easy
+    restart: unless-stopped
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv4.conf.all.src_valid_mark=1
+    cap_add:
+      - SYS_MODULE
+      - NET_ADMIN
+    ports:
+      - "127.0.0.1:51821:51821/tcp"
+      - "51820:51820/udp"
+    volumes:
+      - wg-easy-data:/etc/wireguard
+    environment:
+      # ssh -L 127.0.0.1:51821:127.0.0.1:51821 -Nhp@it-t.fr
+      - PASSWORD_HASH=$$2a$$12$$ycWK/XpcND73ieCAX/P48eA9fL7CBA1J01L0hL/WDHRd9K3PqJEmy # pomme
+      - WG_HOST=${WG_HOST} # changez_moi
+      - LANG=fr
+    networks:
+      vpn_network:
+        ipv4_address: 172.20.0.9
+    profiles:
+      - wireguard
+
   gaia-postgres:
     image: postgres:15-alpine
     restart: unless-stopped
@@ -309,6 +335,8 @@ volumes:
     name: gaia-postgres_data
   gitea-data:
     name: gitea-data
+  wg-easy-data:
+    name: wg-easy-data
 
 networks:
   vpn_network:
