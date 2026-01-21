@@ -99,7 +99,8 @@ services:
       - web
 
   planka:
-    image: ghcr.io/plankanban/planka:latest
+    image: ghcr.io/plankanban/planka:nightly
+    #image: ghcr.io/plankanban/planka:1.26.2
     restart: on-failure
     volumes:
       - planka-data:/app

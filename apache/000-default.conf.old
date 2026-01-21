@@ -1,0 +1,155 @@
+<VirtualHost *:80>
+    ServerAdmin ${SERVER_ADMIN}
+    DocumentRoot /var/www/html
+    Redirect permanent / https://${SERVER_DOMAIN}
+</VirtualHost>
+
+<VirtualHost *:80>
+    ServerName ${WIKI_DOMAIN}
+    Redirect permanent / https://${WIKI_DOMAIN}
+</VirtualHost>
+
+<VirtualHost *:80>
+    ServerName ${PLANKA_DOMAIN}
+    Redirect permanent / https://${PLANKA_DOMAIN}
+</VirtualHost>
+
+<VirtualHost *:80>
+    ServerName ${GAIA_PLANKA_DOMAIN}
+    Redirect permanent / https://${GAIA_PLANKA_DOMAIN}
+</VirtualHost>
+
+<VirtualHost *:80>
+    ServerName ${GITEA_DOMAIN}
+    Redirect permanent / https://${GITEA_DOMAIN}
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName ${SERVER_DOMAIN}
+    ServerAdmin ${SERVER_ADMIN}
+    DocumentRoot /var/www/html
+
+    SSLEngine on
+    SSLCertificateFile ${SSL_CERTIFICATE_FILE}
+    SSLCertificateKeyFile ${SSL_CERTIFICATE_KEY_FILE}
+
+    <Directory /var/www/html>
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    ErrorLog ${APACHE_LOG_DIR}/error.log
+    CustomLog ${APACHE_LOG_DIR}/access.log combined
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName ${PLANKA_DOMAIN}
+
+    SSLEngine on
+    SSLCertificateFile ${SSL_CERTIFICATE_FILE}
+    SSLCertificateKeyFile ${SSL_CERTIFICATE_KEY_FILE}
+
+    ErrorLog ${APACHE_LOG_DIR}/planka_error.log
+    CustomLog ${APACHE_LOG_DIR}/planka_access.log combined
+
+    SSLProxyEngine on
+    ProxyPreserveHost On
+    ProxyRequests Off
+
+    # WebSocket support
+    RewriteEngine On
+    RewriteCond %{HTTP:Upgrade} =websocket [NC]
+    RewriteCond %{HTTP:Connection} upgrade [NC]
+    RewriteRule ^/socket.io/(.*) ws://172.20.0.5:1337/socket.io/$1 [P,L]
+
+    ProxyPass / http://172.20.0.5:1337/
+    ProxyPassReverse / http://172.20.0.5:1337/
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName ${WIKI_DOMAIN}
+
+    SSLEngine on
+    SSLCertificateFile ${SSL_CERTIFICATE_FILE}
+    SSLCertificateKeyFile ${SSL_CERTIFICATE_KEY_FILE}
+
+    ErrorLog ${APACHE_LOG_DIR}/wiki_error.log
+    CustomLog ${APACHE_LOG_DIR}/wiki_access.log combined
+
+    SSLProxyEngine on
+    ProxyPreserveHost On
+    ProxyRequests Off
+
+    ProxyPass / http://172.20.0.6:3000/
+    ProxyPassReverse / http://172.20.0.6:3000/
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName ${GAIA_PLANKA_DOMAIN}
+
+    SSLEngine on
+    SSLCertificateFile ${SSL_CERTIFICATE_FILE}
+    SSLCertificateKeyFile ${SSL_CERTIFICATE_KEY_FILE}
+
+    ErrorLog ${APACHE_LOG_DIR}/gaia-planka_error.log
+    CustomLog ${APACHE_LOG_DIR}/gaia-planka_access.log combined
+
+    SSLProxyEngine on
+    ProxyPreserveHost On
+    ProxyRequests Off
+
+    # WebSocket support
+    RewriteEngine On
+    RewriteCond %{HTTP:Upgrade} =websocket [NC]
+    RewriteCond %{HTTP:Connection} upgrade [NC]
+    RewriteRule ^/socket.io/(.*) ws://172.20.1.1:1337/socket.io/$1 [P,L]
+    <Location />
+      Require ip 172.20.0.0/24
+    </Location>
+
+    ProxyPass / http://172.20.1.1:1337/
+    ProxyPassReverse / http://172.20.1.1:1337/
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName ${GAIA_WIKI_DOMAIN}
+
+    SSLEngine on
+    SSLCertificateFile ${SSL_CERTIFICATE_FILE}
+    SSLCertificateKeyFile ${SSL_CERTIFICATE_KEY_FILE}
+
+    ErrorLog ${APACHE_LOG_DIR}/gaia-wiki_error.log
+    CustomLog ${APACHE_LOG_DIR}/gaia-wiki_access.log combined
+
+    SSLProxyEngine on
+    ProxyPreserveHost On
+    ProxyRequests Off
+    <Location />
+      Require ip 172.20.0.0/24
+    </Location>
+
+    ProxyPass / http://172.20.1.2:3000/
+    ProxyPassReverse / http://172.20.1.2:3000/
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName ${GITEA_DOMAIN}
+
+    SSLEngine on
+    SSLCertificateFile ${SSL_CERTIFICATE_FILE}
+    SSLCertificateKeyFile ${SSL_CERTIFICATE_KEY_FILE}
+
+    ErrorLog ${APACHE_LOG_DIR}/gitea_error.log
+    CustomLog ${APACHE_LOG_DIR}/gitea_access.log combined
+
+    SSLProxyEngine on
+    ProxyPreserveHost On
+    ProxyRequests Off
+
+    ProxyPass / http://172.20.0.8:3000/
+    ProxyPassReverse / http://172.20.0.8:3000/
+</VirtualHost>
+
+# Enable SSL module
+LoadModule ssl_module modules/mod_ssl.so
