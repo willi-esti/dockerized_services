@@ -93,27 +93,42 @@ if [ "$1" == "gaia" ]; then
     exit 0
 fi
 
+# if arg is wireguard then wireguard profile will be used
+if [ "$1" == "wireguard" ]; then
+    if [ "$2" == "up" ]; then
+        docker_compose_up wireguard
+    elif [ "$2" == "down" ]; then
+        docker_compose_down wireguard
+    elif [ "$2" == "restart" ]; then
+        docker_compose_restart wireguard
+    fi
+    exit 0
+fi
+
 # if arg is down then down them all one by one
 if [ "$1" == "up" ]; then
     docker_compose_up pw
     docker_compose_up openvpn
+    docker_compose_up wireguard
     docker_compose_up web
     #docker_compose_up gaia
     exit 0
 elif [ "$1" == "down" ]; then
     docker_compose_down pw
     docker_compose_down openvpn
+    docker_compose_down wireguard
     docker_compose_down web
     #docker_compose_down gaia
     exit 0
 elif [ "$1" == "restart" ]; then
     docker_compose_restart pw
     docker_compose_restart openvpn
+    docker_compose_restart wireguard
     docker_compose_restart web
     #docker_compose_restart gaia
     exit 0
 fi
 
-echo "Usage: $0 {pw|openvpn|web|gaia} {up|down|restart}"
+echo "Usage: $0 {pw|openvpn|web|gaia|wireguard} {up|down|restart}"
 exit 1
 

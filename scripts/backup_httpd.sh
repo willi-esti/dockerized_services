@@ -116,9 +116,38 @@ for i in $(ls -t $backup_dir/); do
     fi
 done
 
+ACCESS_TOKEN=$(cat $ACCESS_TOKEN_FILE | head -n 1)
+CUTOFF_DATE=$(date -u -d "30 days ago" +"%Y-%m-%dT%H:%M:%S")
+
+echo "🧹 Deleting Drive files older than $CUTOFF_DATE"
+
+PAGE_TOKEN=""
+
+while : ; do
+  RESPONSE=$(curl -s -X GET \
+    -H "Authorization: Bearer $ACCESS_TOKEN" \
+    "https://www.googleapis.com/drive/v3/files?\
+q=modifiedTime%20%3C%20'$CUTOFF_DATE'%20and%20trashed=false\
+&fields=nextPageToken,files(id,name,modifiedTime)\
+&pageSize=1000\
+&supportsAllDrives=true\
+&includeItemsFromAllDrives=true\
+&pageToken=$PAGE_TOKEN")
+
+  echo "$RESPONSE" | jq -r '.files[] | "\(.id) \(.name) \(.modifiedTime)"' |
+  while read -r FILE_ID FILE_NAME FILE_TIME; do
+    echo "🗑️ Deleting: $FILE_NAME ($FILE_TIME)"
+    curl -s -X DELETE \
+      -H "Authorization: Bearer $ACCESS_TOKEN" \
+      "https://www.googleapis.com/drive/v3/files/$FILE_ID?supportsAllDrives=true"
+  done
+
+  PAGE_TOKEN=$(echo "$RESPONSE" | jq -r '.nextPageToken')
+  [[ "$PAGE_TOKEN" == "null" ]] && break
+done
+
 if [[ $NO_UPLOAD == false ]]; then
     # Upload to drive
-    ACCESS_TOKEN=$(cat $ACCESS_TOKEN_FILE | head -n 1)
     FILE_PATH="$backup_dir/backup_$today.tgz"
 
     curl -X POST -L \
@@ -128,4 +157,25 @@ if [[ $NO_UPLOAD == false ]]; then
         "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart"
 fi
 
+human() {
+  numfmt --to=iec-i --suffix=B "$1"
+}
 
+
+QUOTA_JSON=$(curl -s -X GET \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  "https://www.googleapis.com/drive/v3/about?fields=storageQuota")
+
+LIMIT=$(echo "$QUOTA_JSON" | jq -r '.storageQuota.limit')
+USAGE=$(echo "$QUOTA_JSON" | jq -r '.storageQuota.usage')
+
+echo "📦 Drive quota:"
+echo "   Used : $(human "$USAGE")"
+echo "   Limit: $(human "$LIMIT")"
+
+PERCENT=$(( USAGE * 100 / LIMIT ))
+echo "   Usage: $PERCENT %"
+
+if (( PERCENT > 90 )); then
+  echo "⚠️ Drive usage above 90%, cleanup triggered"
+fi
