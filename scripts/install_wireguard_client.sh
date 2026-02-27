@@ -59,6 +59,21 @@ mkdir -p /etc/wireguard
 echo -e "${YELLOW}Copying configuration file to /etc/wireguard/${INTERFACE_NAME}.conf${NC}"
 cp "$CONFIG_FILE" "/etc/wireguard/${INTERFACE_NAME}.conf"
 
+# Check and set PersistentKeepalive to 25
+echo -e "${YELLOW}Checking and setting PersistentKeepalive to 25...${NC}"
+if grep -q "PersistentKeepalive" "/etc/wireguard/${INTERFACE_NAME}.conf"; then
+    current_value=$(grep "PersistentKeepalive" "/etc/wireguard/${INTERFACE_NAME}.conf" | awk -F'=' '{print $2}' | tr -d ' ')
+    if [ "$current_value" != "25" ]; then
+        sed -i "s/PersistentKeepalive = .*/PersistentKeepalive = 25/" "/etc/wireguard/${INTERFACE_NAME}.conf"
+        echo -e "${GREEN}✓ Updated PersistentKeepalive to 25${NC}"
+    else
+        echo -e "${GREEN}✓ PersistentKeepalive is already set to 25${NC}"
+    fi
+else
+    sed -i '/\[Peer\]/a PersistentKeepalive = 25' "/etc/wireguard/${INTERFACE_NAME}.conf"
+    echo -e "${GREEN}✓ Added PersistentKeepalive = 25${NC}"
+fi
+
 # Set proper permissions
 chmod 600 "/etc/wireguard/${INTERFACE_NAME}.conf"
 
