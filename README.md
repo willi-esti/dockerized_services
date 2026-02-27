@@ -86,6 +86,7 @@ Example :
 ```
 run web up
 ```
+
 ## WireGuard
 
 ### Server
@@ -111,4 +112,19 @@ sudo ./scripts/install_wireguard_client.sh wg0.conf
 Verify connection:
 ```bash
 wg
+```
+
+## OpenVPN Client Management
+
+The `ovpn.sh` script is used to manage OpenVPN clients. It supports the following actions:
+
+- `init`: Initialize the OpenVPN data volume.
+- `add [CLIENTNAME]`: Add a new client.
+- `rm [CLIENTNAME]`: Remove an existing client.
+- `list`: List all clients.
+- `show`: Show IP addresses of connected clients.
+
+Usage:
+```
+./ovpn.sh {init|add|rm|list|show} [CLIENTNAME]
 ```
